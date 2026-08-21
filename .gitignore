@@ -1,0 +1,5 @@
+node_modules/
+.env
+friendships.json
+placed-blocks.json
+deleted-map-parts.json
