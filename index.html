@@ -1,0 +1,3839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gonblox 3D - Classic Park & Obby DX</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f5f7;
+            --sidebar-bg: #ffffff;
+            --text-main: #111111;
+            --text-muted: #656565;
+            --border-color: #e4e4e4;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- AUTHENTICATION OVERLAY --- */
+        #auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .auth-modal {
+            background: #11141d;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 440px;
+            border-radius: 20px;
+            padding: 35px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            color: white;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+
+        .auth-logo {
+            text-align: center;
+            font-weight: 900;
+            font-size: 26px;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .auth-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .auth-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .auth-row-inputs {
+            display: grid;
+            grid-template-columns: 2fr 1.2fr 1.5fr;
+            gap: 10px;
+        }
+
+        .auth-input, .auth-select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus, .auth-select:focus {
+            border-color: #3b82f6;
+        }
+
+        .gender-selection-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .gender-btn {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .gender-btn.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .auth-button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .auth-submit-btn, .auth-login-btn {
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .auth-submit-btn {
+            background: white;
+            color: #0f172a;
+        }
+
+        .auth-submit-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .auth-login-btn {
+            background: #1d4ed8;
+            color: white;
+        }
+
+        .auth-login-btn:hover {
+            background: #1e40af;
+        }
+
+        .auth-footer-text {
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+            line-height: 1.4;
+        }
+        .auth-footer-text a {
+            color: #94a3b8;
+            text-decoration: underline;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 80px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 25px;
+            gap: 25px;
+            z-index: 10;
+        }
+
+        .sidebar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            cursor: pointer;
+            text-decoration: none;
+            gap: 6px;
+            transition: color 0.2s ease;
+        }
+
+        .sidebar-item.active, .sidebar-item:hover {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .sidebar-icon {
+            width: 28px;
+            height: 28px;
+            background-color: #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-item.active .sidebar-icon, .sidebar-item:hover .sidebar-icon {
+            background-color: #111;
+            color: #fff;
+            transform: scale(1.05);
+        }
+
+        /* --- MAIN CONTAINER --- */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* --- TOP HEADER --- */
+        .header {
+            height: 65px;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-area {
+            font-weight: 900;
+            font-size: 22px;
+            letter-spacing: -1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-top-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .robux-badge {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #15803d;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .avatar-circle {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #fde047, #3b82f6);
+            border-radius: 50%;
+        }
+
+        /* --- VIEW SECTIONS --- */
+        .view-section {
+            display: none;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .view-section.active-view {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--text-main);
+        }
+
+        /* --- GAMES GRID --- */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .game-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 12px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .game-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.06);
+        }
+
+        .game-thumbnail {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(135deg, #22c55e, #10b981);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            padding: 0 10px;
+        }
+
+        .game-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+        }
+
+        .game-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-stats {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .play-btn {
+            width: 100%;
+            padding: 8px;
+            background-color: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .play-btn:hover {
+            background-color: #16a34a;
+        }
+
+        .delete-game-btn {
+            width: 100%;
+            margin-top: 6px;
+            padding: 7px;
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .delete-game-btn:hover {
+            background: #fecaca;
+        }
+
+        /* --- CREATE / PUBLISH VIEW --- */
+        .creator-container {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 700px;
+        }
+
+        .creator-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .creator-form-group label {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .creator-input, .creator-select {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .creator-input:focus, .creator-select:focus {
+            border-color: #3b82f6;
+        }
+
+        .publish-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+            align-self: flex-start;
+        }
+
+        .publish-btn:hover {
+            background-color: #2563eb;
+        }
+
+        .spawn-items-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .spawn-item-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        /* --- CATALOG / SHOP VIEW --- */
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .catalog-item-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            text-align: center;
+        }
+
+        .catalog-item-icon {
+            width: 100%;
+            height: 130px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+        }
+
+        .catalog-item-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .catalog-item-price {
+            font-size: 13px;
+            color: #15803d;
+            font-weight: 800;
+        }
+
+        .action-item-btn {
+            width: 100%;
+            padding: 8px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .action-item-btn.equipped {
+            background-color: #64748b;
+        }
+        .action-item-btn.equipped:hover {
+            background-color: #475569;
+        }
+
+        /* --- CUSTOMIZER VIEW --- */
+        .customizer-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+            height: calc(100vh - 160px);
+        }
+
+        .preview-canvas-container {
+            background: #e9ecef;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #avatar-preview-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .customizer-controls {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .control-group input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .control-group input[type="file"] {
+            font-size: 12px;
+            color: var(--text-muted);
+            padding: 6px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* --- 3D GAMEPLAY VIEW --- */
+        #game-view {
+            position: absolute;
+            top: 65px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 65px);
+            background: #000;
+            display: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .game-hud {
+            position: absolute;
+            top: 20px;
+            left: 90px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            pointer-events: none;
+        }
+
+        #server-leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 210px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.88);
+            color: #f8fafc;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            z-index: 5;
+        }
+
+        .leaderboard-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .leaderboard-count {
+            color: #93c5fd;
+            font-size: 12px;
+        }
+
+        .leaderboard-player {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+        }
+
+        .leaderboard-player-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .leaderboard-device {
+            color: #cbd5e1;
+            flex-shrink: 0;
+            font-size: 11px;
+        }
+
+        @media (max-width: 600px) {
+            #server-leaderboard {
+                top: 10px;
+                right: 10px;
+                width: 165px;
+            }
+        }
+
+        #spawn-item-bar {
+            position: absolute;
+            left: 20px;
+            bottom: 18px;
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            max-width: 440px;
+            z-index: 6;
+        }
+
+        #spawn-item-bar button {
+            position: relative;
+            width: 78px;
+            height: 68px;
+            padding: 16px 4px 3px;
+            border: 2px solid rgba(255, 255, 255, 0.16);
+            border-radius: 7px;
+            background: rgba(43, 92, 153, 0.9);
+            color: #f8fafc;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #spawn-item-bar button .hotbar-number {
+            position: absolute;
+            top: 2px;
+            left: 5px;
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        #spawn-item-bar button .hotbar-icon {
+            display: block;
+            height: 30px;
+            font-size: 24px;
+            line-height: 28px;
+        }
+
+        #spawn-item-bar button .hotbar-name {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 10px;
+        }
+
+        #spawn-item-bar button.empty-slot {
+            opacity: 0.35;
+            cursor: default;
+        }
+
+        #spawn-item-bar button.active {
+            background: #2563eb;
+            border-color: #93c5fd;
+        }
+
+        #robux-timer-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #4ade80;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            z-index: 150;
+            pointer-events: none;
+        }
+
+        #shift-lock-cursor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            display: none;
+            pointer-events: none;
+            z-index: 102;
+            box-shadow: 0 0 8px rgba(0,0,0,0.5);
+        }
+        #shift-lock-cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        #chatBubble {
+            position: absolute;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            transform: translate(-50%, -100%);
+            display: none;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            z-index: 150;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        #chatBubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: white transparent;
+            display: block;
+            width: 0;
+        }
+
+        .remote-chat-bubble {
+            position: absolute;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 2px solid #333;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            transform: translate(-50%, -100%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+            z-index: 150;
+            pointer-events: none;
+        }
+
+        #friend-toast {
+            position: absolute;
+            top: 84px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #111827;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white;
+            z-index: 300;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+
+        #friend-toast button, .friend-row button {
+            border: 0;
+            border-radius: 7px;
+            padding: 7px 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #friend-toast button { background: #3b82f6; color: white; }
+        #friend-toast .friend-dismiss { background: #475569; }
+        .friends-list { display: flex; flex-direction: column; gap: 8px; }
+        .friend-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 41, 59, 0.55);
+            padding: 10px 12px;
+            border-radius: 10px;
+        }
+        .friend-avatar { width: 30px; height: 30px; border-radius: 50%; background: #64748b; }
+        .friend-name { flex: 1; font-weight: 700; }
+        .friend-status { font-size: 12px; color: #94a3b8; }
+        .friend-online { color: #4ade80; }
+
+        .friends-strip {
+            min-height: 92px;
+            padding: 12px 30px;
+            background: #fff;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            overflow-x: auto;
+        }
+        .friends-strip-title { font-weight: 800; white-space: nowrap; }
+        .friends-strip-list { display: flex; align-items: center; gap: 14px; }
+        .friends-strip-card { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+        .friends-strip-card .friend-avatar { width: 42px; height: 42px; border: 3px solid #4ade80; }
+        .friends-strip-card button { border: 0; border-radius: 7px; padding: 6px 9px; background: #22c55e; color: white; font-weight: 700; cursor: pointer; }
+
+        #chatInputContainer {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 150;
+            display: none;
+        }
+
+        #chatInput {
+            padding: 10px 14px;
+            width: 260px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.4);
+            font-size: 14px;
+            outline: none;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        #chatInput::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        #leftToolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 150;
+        }
+
+        .toolButton {
+            width: 55px;
+            height: 55px;
+            background-color: #A3E4D7;
+            border: 3px solid #117A65;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s ease;
+        }
+
+        .toolButton:active {
+            transform: scale(0.95);
+        }
+
+        .toolButton svg {
+            width: 28px;
+            height: 28px;
+            fill: #117A65;
+        }
+
+        .toolButton.r-icon {
+            font-size: 28px;
+            font-weight: bold;
+            color: #117A65;
+        }
+
+        /* --- BUILDER TOOLBAR OVERLAY --- */
+        #builderToolbar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(17, 24, 39, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            padding: 14px 18px;
+            border-radius: 16px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 160;
+            color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .builder-title {
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .builder-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .builder-btn {
+            background: #334155;
+            color: white;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .builder-btn:hover {
+            background: #475569;
+        }
+
+        .builder-btn.active-tool {
+            background: #2563eb;
+            border-color: #60a5fa;
+        }
+
+        .builder-color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: #cbd5e1;
+            gap: 10px;
+        }
+
+        #blockColorPicker {
+            width: 40px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* --- EMOTE WHEEL OVERLAY --- */
+        #emote-wheel-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(3px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 250;
+        }
+
+        .emote-wheel-container {
+            position: relative;
+            width: 380px;
+            height: 380px;
+            background: radial-gradient(circle, #5c2411 0%, #3a1306 100%);
+            border: 6px solid #facc15;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emote-center-box {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            background: #111827;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 15px;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.8);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .emote-sector {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            top: 0;
+            left: 50%;
+            transform-origin: bottom left;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .emote-sector:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .emote-content-item {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 12px;
+            color: white;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .emote-content-item span {
+            font-size: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 1px 6px;
+            border-radius: 6px;
+            margin-top: 2px;
+        }
+
+        /* --- ESCAPE MENU --- */
+        #esc-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 22, 36, 0.95);
+            display: none;
+            flex-direction: column;
+            z-index: 200;
+            color: white;
+            padding: 25px 40px;
+            justify-content: space-between;
+        }
+
+        .esc-top-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .esc-header-tabs {
+            display: flex;
+            gap: 35px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+            align-items: center;
+        }
+
+        .esc-tab {
+            font-size: 16px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .esc-tab.active, .esc-tab:hover {
+            color: white;
+        }
+
+        .esc-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -16px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+        }
+
+        .esc-action-boxes {
+            display: flex;
+            gap: 20px;
+        }
+
+        .esc-box-btn {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .esc-box-btn:hover {
+            background: rgba(51, 65, 85, 0.8);
+        }
+
+        .esc-content {
+            flex: 1;
+            padding: 10px 0;
+            overflow-y: auto;
+        }
+
+        .settings-pane {
+            display: none;
+            flex-direction: column;
+            gap: 25px;
+            padding-right: 15px;
+        }
+        .settings-pane.active-pane {
+            display: flex;
+        }
+
+        .setting-category-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 16px 20px;
+            border-radius: 12px;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .setting-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .setting-arrow-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .setting-arrow-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .setting-value-display {
+            font-size: 15px;
+            font-weight: 600;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        .esc-server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .esc-server-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .esc-view-toggles {
+            display: flex;
+            gap: 8px;
+        }
+
+        .esc-toggle-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .esc-toggle-icon.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .esc-empty-grid {
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .esc-footer-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            padding-top: 15px;
+        }
+
+        .esc-bottom-btn {
+            flex: 1;
+            background: rgba(26, 35, 50, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .esc-bottom-btn span {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .esc-bottom-btn.leave-btn-action:hover {
+            background: #dc2626;
+            border-color: #ef4444;
+        }
+
+        .esc-bottom-btn.respawn-btn-action:hover {
+            background: #d97706;
+            border-color: #f59e0b;
+        }
+
+        .esc-bottom-btn.resume-btn-action {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            border: 1px solid rgba(96, 165, 250, 0.5);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        }
+        .esc-bottom-btn.resume-btn-action:hover {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION MODAL OVERLAY -->
+    <div id="auth-overlay">
+        <div class="auth-modal">
+            <div class="auth-logo">GONBLOX</div>
+            <div class="auth-subtitle">Sign up and start having fun!</div>
+            
+            <div class="auth-group">
+                <label>Birthday</label>
+                <div class="auth-row-inputs">
+                    <select class="auth-select">
+                        <option>Month</option>
+                        <option>January</option><option>February</option><option>March</option><option>April</option><option>May</option><option>June</option><option>July</option><option>August</option><option>September</option><option>October</option><option>November</option><option>December</option>
+                    </select>
+                    <select class="auth-select">
+                        <option>Day</option>
+                        <script>for(let i=1;i<=31;i++)document.write(`<option>${i}</option>`);</script>
+                    </select>
+                    <select class="auth-select">
+                        <option>Year</option>
+                        <script>for(let i=2026;i>=1950;i--)document.write(`<option>${i}</option>`);</script>
+                    </select>
+                </div>
+            </div>
+
+            <div class="auth-group">
+                <label>Username</label>
+                <input type="text" id="signup-username" class="auth-input" placeholder="Don't use your real name" value="Dugea">
+            </div>
+
+            <div class="auth-group">
+                <label>Password</label>
+                <input type="password" id="signup-password" class="auth-input" placeholder="At least 8 characters" autocomplete="new-password">
+            </div>
+
+            <div class="auth-button-row">
+                <button class="auth-login-btn" onclick="loginAuth()">Log In</button>
+                <button class="auth-submit-btn" onclick="submitAuth()">Sign Up</button>
+            </div>
+
+            <div class="auth-footer-text">
+                By clicking Sign Up, you are agreeing to the <a href="#">Terms of Use</a> including the arbitration clause and you are acknowledging the <a href="#">Privacy Policy</a>.
+            </div>
+        </div>
+    </div>
+
+    <!-- Left Sidebar -->
+    <nav class="sidebar">
+        <a href="#" class="sidebar-item active" onclick="switchView('home', this)">
+            <div class="sidebar-icon">🏠</div>
+            Home
+        </a>
+        <a href="#" class="sidebar-item" onclick="switchView('create', this)">
+            <div class="sidebar-icon">➕</div>
+            Create
+        </a>
+        <a href="#" class="sidebar-item" onclick="switchView('catalog', this)">
+            <div class="sidebar-icon">🛍️</div>
+            Shop
+        </a>
+        <a href="#" class="sidebar-item" onclick="switchView('customize', this)">
+            <div class="sidebar-icon">🎨</div>
+            Avatar
+        </a>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        
+        <!-- Top Header -->
+        <header class="header">
+            <div class="logo-area">
+                GONBLOX <span style="font-size: 12px; background: #eee; padding: 2px 6px; border-radius: 6px; font-weight: normal;">SELECT DX</span>
+            </div>
+            <div class="user-top-info">
+                <div class="robux-badge">
+                    <span>🪙</span> <span id="robux-display">0</span> Gonbux
+                </div>
+                <div class="user-profile">
+                    <div class="avatar-circle"></div>
+                    <span id="display-username">Dugea</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="friends-strip">
+            <div class="friends-strip-title">Friends</div>
+            <div id="home-friends-list" class="friends-strip-list">
+                <span style="color: var(--text-muted);">No online friends</span>
+            </div>
+        </div>
+
+        <!-- HOME VIEW -->
+        <div id="home-view" class="view-section active-view">
+            <div class="section-title">Published Experiences (Play games to earn 1 Gonbux every 2 minutes!)</div>
+            <div class="games-grid" id="published-games-grid">
+                <!-- Dynamically populated published games -->
+            </div>
+        </div>
+
+        <!-- CREATE VIEW -->
+        <div id="create-view" class="view-section">
+            <div class="section-title">Create & Publish Your Own Game</div>
+            <div class="creator-container">
+                <div class="creator-form-group">
+                    <label>Game Title</label>
+                    <input type="text" id="new-game-title" class="creator-input" placeholder="e.g. Mega Lava Obby 🌋">
+                </div>
+                <div class="creator-form-group">
+                    <label>Game Style / Template</label>
+                    <select id="new-game-type" class="creator-select">
+                        <option value="park">Classic Park & Obby</option>
+                        <option value="island">Island Adventure</option>
+                    </select>
+                </div>
+                <div class="creator-form-group">
+                    <label for="new-game-thumbnail">Game Thumbnail</label>
+                    <input type="file" id="new-game-thumbnail" class="creator-input" accept="image/*" onchange="previewGameThumbnail(event)">
+                    <img id="game-thumbnail-preview" alt="Selected game thumbnail preview" style="display: none; width: 220px; height: 120px; object-fit: cover; border-radius: 10px;">
+                </div>
+                <div class="creator-form-group">
+                    <label>Spawn Items</label>
+                    <div class="spawn-items-group">
+                        <label class="spawn-item-option"><input type="checkbox" value="gravityCoil"> Gravity Coil</label>
+                        <label class="spawn-item-option"><input type="checkbox" value="speedCoil"> Speed Coil</label>
+                        <label class="spawn-item-option"><input type="checkbox" value="sword"> Sword</label>
+                        <label class="spawn-item-option"><input type="checkbox" value="waterGun"> Water Gun</label>
+                    </div>
+                </div>
+                <button class="publish-btn" onclick="publishNewGame()">🚀 Publish Game for Everyone</button>
+            </div>
+        </div>
+
+        <!-- CATALOG VIEW -->
+        <div id="catalog-view" class="view-section">
+            <div class="section-title">Avatar Shop & Inventory</div>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Play games to earn Gonbux and purchase epic items like the Dominus, Headless, Gloves, and more!</p>
+            <div class="catalog-grid" id="catalog-grid-container">
+                <!-- Dynamically populated catalog items -->
+            </div>
+        </div>
+
+        <!-- CUSTOMIZER VIEW -->
+        <div id="customize-view" class="view-section">
+            <div class="section-title">Avatar Customizer Studio</div>
+            <div class="customizer-layout">
+                <div class="preview-canvas-container">
+                    <canvas id="avatar-preview-canvas"></canvas>
+                </div>
+                <div class="customizer-controls">
+                    <h3>Body Type & Style</h3>
+
+                    <div class="control-group">
+                        <label>Body Type</label>
+                        <div class="gender-selection-row">
+                            <button type="button" class="gender-btn active" id="avatar-body-female" onclick="setGender('female')">♀ Female</button>
+                            <button type="button" class="gender-btn" id="avatar-body-male" onclick="setGender('male')">♂ Male</button>
+                        </div>
+                    </div>
+
+                    <h3>Body Colors & Textures</h3>
+                    
+                    <div class="control-group">
+                        <label>Head Color</label>
+                        <input type="color" id="headColor" value="#fde047" onchange="updateAvatarColor('head', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Upload Custom Face Image</label>
+                        <input type="file" id="faceImageUpload" accept="image/*" onchange="uploadCustomTexture('head', event)">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Torso Color</label>
+                        <input type="color" id="torsoColor" value="#22c55e" onchange="updateAvatarColor('torso', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Upload Custom Torso Graphic</label>
+                        <input type="file" id="torsoImageUpload" accept="image/*" onchange="uploadCustomTexture('torso', event)">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Left Arm Color</label>
+                        <input type="color" id="leftArmColor" value="#e2e8f0" onchange="updateAvatarColor('leftArm', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Right Arm Color</label>
+                        <input type="color" id="rightArmColor" value="#e2e8f0" onchange="updateAvatarColor('rightArm', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Left Leg Color</label>
+                        <input type="color" id="leftLegColor" value="#e2e8f0" onchange="updateAvatarColor('leftLeg', this.value)">
+                    </div>
+                    <div class="control-group">
+                        <label>Right Leg Color</label>
+                        <input type="color" id="rightLegColor" value="#e2e8f0" onchange="updateAvatarColor('rightLeg', this.value)">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D GAMEPLAY VIEW -->
+        <div id="game-view">
+            <div id="shift-lock-cursor"></div>
+            <div id="robux-timer-overlay">Next Gonbux in: 02:00</div>
+            <div id="server-leaderboard" aria-live="polite">
+                <div class="leaderboard-heading">
+                    <span>Players in server</span>
+                    <span id="leaderboard-count" class="leaderboard-count">0</span>
+                </div>
+                <div id="leaderboard-players"></div>
+            </div>
+            <div id="spawn-item-bar" style="display: none;">
+                 <button type="button" data-tool="gravityCoil"><span class="hotbar-number">1</span><span class="hotbar-icon">🌀</span><span class="hotbar-name">Gravity Coil</span></button>
+                 <button type="button" data-tool="speedCoil"><span class="hotbar-number">2</span><span class="hotbar-icon">⚡</span><span class="hotbar-name">Speed Coil</span></button>
+                 <button type="button" data-tool="sword"><span class="hotbar-number">3</span><span class="hotbar-icon">⚔️</span><span class="hotbar-name">Sword</span></button>
+                 <button type="button" data-tool="waterGun"><span class="hotbar-number">4</span><span class="hotbar-icon">🔫</span><span class="hotbar-name">Water Gun</span></button>
+                 <button type="button" data-tool="empty" class="empty-slot" disabled><span class="hotbar-number">5</span><span class="hotbar-icon">·</span><span class="hotbar-name">Empty</span></button>
+            </div>
+            
+            <div id="chatBubble">Hello world!</div>
+            <div id="friend-toast"></div>
+
+            <!-- BUILDER TOOLBAR -->
+            <div id="builderToolbar">
+                <div class="builder-title">
+                    <span>🧱 Block Studio</span>
+                    <span style="font-size: 10px; color: #64748b;">Click block in world</span>
+                </div>
+                <div class="builder-actions">
+                    <button class="builder-btn active-tool" id="tool-place" onclick="setBuilderTool('place')">➕ Place</button>
+                    <button class="builder-btn" id="tool-color" onclick="setBuilderTool('color')">🎨 Color</button>
+                    <button class="builder-btn" id="tool-delete" onclick="setBuilderTool('delete')">❌ Delete</button>
+                </div>
+                <div class="builder-color-row">
+                    <span>Block Color:</span>
+                    <input type="color" id="blockColorPicker" value="#3b82f6">
+                </div>
+                <div class="builder-color-row">
+                    <label for="blockSizePicker">Block Size</label>
+                    <select id="blockSizePicker" class="creator-select" style="padding: 6px 8px; width: 100px;">
+                        <option value="2">Small</option>
+                        <option value="4" selected>Medium</option>
+                        <option value="6">Large</option>
+                        <option value="8">Huge</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- EMOTE WHEEL MODAL -->
+            <div id="emote-wheel-overlay">
+                <div class="emote-wheel-container">
+                    <div class="emote-center-box">Select an<br>Emote</div>
+
+                    <div class="emote-sector" style="transform: rotate(0deg); border-top-right-radius: 100%;" onclick="triggerEmote(1, 'Wave 👋')"></div>
+                    <div class="emote-content-item" style="top: 28px; left: 198px;">🧍‍♂️<span>1</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(45deg); border-top-right-radius: 100%;" onclick="triggerEmote(2, 'Shrug 🤷')"></div>
+                    <div class="emote-content-item" style="top: 72px; left: 278px;">🤷‍♂️<span>2</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(90deg); border-top-right-radius: 100%;" onclick="triggerEmote(3, 'Cheer 🎉')"></div>
+                    <div class="emote-content-item" style="top: 172px; left: 320px;">🎉<span>3</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(135deg); border-top-right-radius: 100%;" onclick="triggerEmote(4, 'Salute 🫡')"></div>
+                    <div class="emote-content-item" style="top: 272px; left: 278px;">🫡<span>4</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(180deg); border-top-right-radius: 100%;" onclick="triggerEmote(5, 'Jump/Pump 🙌')"></div>
+                    <div class="emote-content-item" style="top: 315px; left: 198px;">🙌<span>5</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(225deg); border-top-right-radius: 100%;" onclick="triggerEmote(6, 'Laugh 😆')"></div>
+                    <div class="emote-content-item" style="top: 272px; left: 118px;">😆<span>6</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(270deg); border-top-right-radius: 100%;" onclick="triggerEmote(7, 'Rest 💤')"></div>
+                    <div class="emote-content-item" style="top: 172px; left: 75px;">💤<span>7</span></div>
+
+                    <div class="emote-sector" style="transform: rotate(315deg); border-top-right-radius: 100%;" onclick="triggerEmote(8, 'Dance 💃')"></div>
+                    <div class="emote-content-item" style="top: 72px; left: 118px;">💃<span>8</span></div>
+                </div>
+            </div>
+
+            <div id="leftToolbar">
+                <div class="toolButton" id="refreshButton" title="Refresh">
+                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </div>
+                <div class="toolButton" id="gearButton" title="Settings">
+                    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </div>
+                <div class="toolButton r-icon" id="robloxIconButton" title="Settings Menu">G</div>
+            </div>
+
+            <div class="game-hud">
+                <h3 id="current-game-title">Game Title</h3>
+                <p>Controls: <b>WASD</b> to walk/drive, <b>SPACEBAR</b> to jump or ride/exit the car, <b>1-4</b> to select items, <b>Left Click</b> to use/build!</p>
+            </div>
+            
+            <canvas id="game-canvas"></canvas>
+
+            <div id="chatInputContainer">
+                <input type="text" id="chatInput" placeholder="Type to chat... (Press Enter)" autocomplete="off">
+            </div>
+
+            <div id="esc-menu">
+                <div class="esc-top-section">
+                    <div class="esc-header-tabs">
+                        <div class="esc-tab active" onclick="switchEscTab('people', this)">👥 People</div>
+                        <div class="esc-tab" onclick="switchEscTab('settings', this)">⚙️ Settings</div>
+                        <div class="esc-tab" onclick="switchEscTab('gallery', this)">🖼️ Gallery</div>
+                        <div class="esc-tab" onclick="switchEscTab('report', this)">🚩 Report</div>
+                        <div class="esc-tab" onclick="switchEscTab('help', this)">❓ Help</div>
+                    </div>
+                    <div id="people-action-boxes" class="esc-action-boxes">
+                        <div class="esc-box-btn">👤 Invite Friends</div>
+                        <div class="esc-box-btn">🌐 Switch Server</div>
+                    </div>
+                </div>
+
+                <div class="esc-content">
+                    <div id="people-pane" class="settings-pane active-pane">
+                        <div class="esc-server-header">
+                            <h2>In this server</h2>
+                            <div class="esc-view-toggles">
+                                <div class="esc-toggle-icon active">🔲</div>
+                                <div class="esc-toggle-icon">☰</div>
+                            </div>
+                        </div>
+                        <div class="setting-category-title">Friends</div>
+                        <div id="friends-list" class="friends-list">
+                            <div class="esc-empty-grid">No friends yet.</div>
+                        </div>
+                        <div class="esc-empty-grid">
+                            Double-click a player to send a friend request.
+                        </div>
+                    </div>
+
+                    <div id="settings-pane" class="settings-pane">
+                        <div class="setting-category-title">Gameplay Settings</div>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <div class="setting-label">Shift Lock Switch</div>
+                                <div class="setting-desc">Enables shift-lock camera controls mode (Press Shift to toggle)</div>
+                            </div>
+                            <div class="setting-control">
+                                <button class="setting-arrow-btn" onclick="cycleSetting('shiftLock', -1)">❮</button>
+                                <div id="val-shiftLock" class="setting-value-display">Disabled</div>
+                                <button class="setting-arrow-btn" onclick="cycleSetting('shiftLock', 1)">❯</button>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <div class="setting-label">Mouse Sensitivity</div>
+                                <div class="setting-desc">Adjust camera turning speed</div>
+                            </div>
+                            <div class="setting-control">
+                                <button class="setting-arrow-btn" onclick="cycleSetting('sensitivity', -1)">❮</button>
+                                <div id="val-sensitivity" class="setting-value-display">Medium</div>
+                                <button class="setting-arrow-btn" onclick="cycleSetting('sensitivity', 1)">❯</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="gallery-pane" class="settings-pane"><div class="esc-empty-grid">Gallery captures are empty.</div></div>
+                    <div id="report-pane" class="settings-pane"><div class="esc-empty-grid">No players available to report.</div></div>
+                    <div id="help-pane" class="settings-pane"><div class="esc-empty-grid">Use WASD keys to move and Spacebar to jump. Press T for Emotes.</div></div>
+                </div>
+
+                <div class="esc-footer-actions">
+                    <button class="esc-bottom-btn leave-btn-action" onclick="leaveGame()"><span>L</span> Leave</button>
+                    <button class="esc-bottom-btn respawn-btn-action" onclick="respawnPlayer()"><span>G</span> Respawn</button>
+                    <button class="esc-bottom-btn resume-btn-action" onclick="toggleEscMenu()"><span>ESC</span> Resume</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let userGender = 'female';
+        let currentGameType = 'park';
+        let currentGameId = 'default-park';
+        let currentGameIsUserCreated = false;
+        let currentGameSpawnItems = [];
+        let activeSpawnItem = null;
+        let userRobux = 100;
+        const robuxBalanceStorageKey = 'roblox_dx_robux_balance';
+        userRobux = Number(localStorage.getItem(robuxBalanceStorageKey)) || userRobux;
+        document.getElementById('robux-display').innerText = userRobux;
+        let robuxSecondsElapsed = 0;
+        let robuxInterval = null;
+
+        // Builder system states
+        let currentBuilderTool = 'place'; // 'place', 'color', 'delete'
+        const gameSocket = typeof io === 'function' ? io() : null;
+        const friendsStorageKey = 'roblox_dx_friends';
+        let friends = JSON.parse(localStorage.getItem(friendsStorageKey) || '[]');
+        let pendingFriendTarget = null;
+        const placedBlocksStorageKey = 'roblox_dx_placed_blocks';
+        const deletedMapPartsStorageKey = 'roblox_dx_deleted_map_parts';
+        let placedBlocks = [];
+        let loadedBlockIds = new Set();
+
+        function saveLocalPlacedBlocks() {
+            const blocks = placedBlocks.map(block => ({
+                id: block.userData.placedBlockId,
+                gameType: block.userData.gameType,
+                gameId: block.userData.gameId,
+                x: block.position.x,
+                y: block.position.y,
+                z: block.position.z,
+                size: block.geometry.parameters.width,
+                color: `#${block.material.color.getHexString()}`
+            }));
+            localStorage.setItem(placedBlocksStorageKey, JSON.stringify(blocks));
+        }
+
+        function getLocalPlacedBlocks() {
+            try {
+                const blocks = JSON.parse(localStorage.getItem(placedBlocksStorageKey) || '[]');
+                return Array.isArray(blocks) ? blocks : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function getDeletedMapParts() {
+            try {
+                const deletedParts = JSON.parse(localStorage.getItem(deletedMapPartsStorageKey) || '[]');
+                return Array.isArray(deletedParts) ? deletedParts : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveDeletedMapParts(deletedParts) {
+            localStorage.setItem(deletedMapPartsStorageKey, JSON.stringify(deletedParts));
+        }
+
+        function deleteMapPart(mapPartId) {
+            const mapPart = colliders.find(item => item.userData.mapPartId === mapPartId);
+            if (!mapPart) return;
+            gameScene.remove(mapPart);
+            colliders = colliders.filter(item => item !== mapPart);
+
+            const deletedParts = getDeletedMapParts();
+            if (!deletedParts.includes(`${currentGameId}:${mapPartId}`)) {
+                deletedParts.push(`${currentGameId}:${mapPartId}`);
+                saveDeletedMapParts(deletedParts);
+            }
+        }
+
+        function addPlacedBlock(blockData) {
+            if (!gameScene || loadedBlockIds.has(blockData.id) || blockData.gameId !== currentGameId) return;
+
+            const blockSize = Number(blockData.size);
+            const block = new THREE.Mesh(
+                new THREE.BoxGeometry(blockSize, blockSize, blockSize),
+                new THREE.MeshLambertMaterial({ color: blockData.color })
+            );
+            block.position.set(blockData.x, blockData.y, blockData.z);
+            block.userData.placedBlockId = blockData.id;
+            block.userData.gameType = blockData.gameType;
+            block.userData.gameId = blockData.gameId;
+            gameScene.add(block);
+            colliders.push(block);
+            placedBlocks.push(block);
+            loadedBlockIds.add(blockData.id);
+            saveLocalPlacedBlocks();
+        }
+
+        function createLocalBlock(blockData) {
+            addPlacedBlock({
+                ...blockData,
+                id: blockData.id || `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+            });
+        }
+
+        function removePlacedBlock(blockId) {
+            const block = placedBlocks.find(item => item.userData.placedBlockId === blockId);
+            if (!block) return;
+            gameScene.remove(block);
+            colliders = colliders.filter(item => item !== block);
+            placedBlocks = placedBlocks.filter(item => item !== block);
+            loadedBlockIds.delete(blockId);
+            saveLocalPlacedBlocks();
+        }
+
+        if (gameSocket) {
+            gameSocket.on('connect', () => {
+                gameSocket.emit('identify_user', {
+                    name: document.getElementById('display-username').innerText,
+                    appearance: getLocalAppearance(),
+                    device: getDeviceLabel()
+                });
+                joinCurrentGame();
+            });
+            gameSocket.on('current_players', players => {
+                serverPlayers.clear();
+                Object.entries(players).forEach(([id, playerData]) => serverPlayers.set(id, playerData));
+                Object.entries(players).forEach(([id, playerData]) => addRemotePlayer(id, playerData));
+                renderServerLeaderboard();
+            });
+            gameSocket.on('game_player_counts', counts => {
+                publishedGames.forEach(game => {
+                    game.players = counts[game.id] || 0;
+                });
+                renderPublishedGames();
+            });
+            gameSocket.on('player_joined', ({ id, player }) => {
+                serverPlayers.set(id, player);
+                addRemotePlayer(id, player);
+                renderServerLeaderboard();
+            });
+            gameSocket.on('player_moved', ({ id, gameId, x, y, z }) => updateRemotePlayer(id, { gameId, x, y, z }));
+            gameSocket.on('player_killed', ({ id, by }) => {
+                if (id === gameSocket.id) {
+                    playerAvatar.visible = false;
+                    setTimeout(() => {
+                        if (playerAvatar) {
+                            playerAvatar.position.set(0, 0, currentGameType === 'island' ? 0 : 35);
+                            playerAvatar.visible = true;
+                        }
+                    }, 1500);
+                } else {
+                    removeRemotePlayer(id);
+                }
+                showFriendToast(`${id === gameSocket.id ? 'You were' : 'A player was'} defeated by ${by}.`, [{ label: 'Close', className: 'friend-dismiss', onClick: () => {} }]);
+            });
+            gameSocket.on('player_respawned', ({ id, player }) => {
+                if (id !== gameSocket.id) addRemotePlayer(id, player);
+            });
+            gameSocket.on('water_hit', ({ id, x, y, z }) => {
+                updateRemotePlayer(id, { gameId: currentGameId, x, y, z });
+            });
+            gameSocket.on('chat_broadcast', ({ id, message }) => showRemoteChatBubble(id, message));
+            gameSocket.on('player_disconnected', id => {
+                serverPlayers.delete(id);
+                removeRemotePlayer(id);
+                renderServerLeaderboard();
+            });
+            gameSocket.on('friend_joined', ({ playerName }) => {
+                showFriendToast(`${playerName} joined you!`, [{ label: 'Close', className: 'friend-dismiss', onClick: () => {} }]);
+            });
+            gameSocket.on('friend_request_received', ({ fromId, fromName }) => {
+                showFriendToast(`${fromName} wants to be your friend!`, [
+                    { label: 'Accept', onClick: () => gameSocket.emit('friend_request_response', { fromId, accepted: true }) },
+                    { label: 'Decline', className: 'friend-dismiss', onClick: () => gameSocket.emit('friend_request_response', { fromId, accepted: false }) }
+                ]);
+            });
+            gameSocket.on('friend_list', serverFriends => {
+                friends = serverFriends;
+                saveFriends();
+                renderFriends();
+            });
+            gameSocket.on('placed_blocks', blocks => {
+                blocks.forEach(addPlacedBlock);
+            });
+            gameSocket.on('deleted_map_parts', parts => {
+                parts.forEach(({ mapPartId }) => deleteMapPart(mapPartId));
+            });
+            gameSocket.on('block_placed', addPlacedBlock);
+            gameSocket.on('block_deleted', ({ id, gameId }) => {
+                if (gameId === currentGameId) removePlacedBlock(id);
+            });
+            gameSocket.on('block_updated', blockData => {
+                if (blockData.gameId === currentGameId) {
+                    removePlacedBlock(blockData.id);
+                    addPlacedBlock(blockData);
+                }
+            });
+            gameSocket.on('map_part_deleted', ({ gameId, mapPartId }) => {
+                if (gameId === currentGameId) deleteMapPart(mapPartId);
+            });
+        }
+
+        function setBuilderTool(tool) {
+            currentBuilderTool = tool;
+            document.getElementById('tool-place').classList.remove('active-tool');
+            document.getElementById('tool-color').classList.remove('active-tool');
+            document.getElementById('tool-delete').classList.remove('active-tool');
+            document.getElementById(`tool-${tool}`).classList.add('active-tool');
+        }
+
+        function saveFriends() {
+            localStorage.setItem(friendsStorageKey, JSON.stringify(friends));
+        }
+
+        function renderFriends(friendList = friends) {
+            const list = document.getElementById('friends-list');
+            if (!list) return;
+            list.innerHTML = '';
+            if (!friendList.length) {
+                list.innerHTML = '<div class="esc-empty-grid">No friends yet.</div>';
+                return;
+            }
+            friendList.forEach(friend => {
+                const row = document.createElement('div');
+                row.className = 'friend-row';
+                row.innerHTML = `<div class="friend-avatar"></div><div class="friend-name">${escapeHtml(friend.name)}</div><div class="friend-status ${friend.online ? 'friend-online' : ''}">${friend.online ? 'Online' : 'Offline'}</div>`;
+                if (friend.appearance?.avatarImage) row.querySelector('.friend-avatar').style.background = `center / cover no-repeat url("${friend.appearance.avatarImage}")`;
+                if (friend.online && friend.gameId) {
+                    const joinButton = document.createElement('button');
+                    joinButton.textContent = 'Join';
+                    joinButton.onclick = () => joinFriend(friend);
+                    row.appendChild(joinButton);
+                }
+                list.appendChild(row);
+            });
+            renderHomeFriends(friendList);
+        }
+
+        function renderHomeFriends(friendList = friends) {
+            const list = document.getElementById('home-friends-list');
+            if (!list) return;
+            list.innerHTML = '';
+            const selfCard = document.createElement('div');
+            selfCard.className = 'friends-strip-card';
+            selfCard.innerHTML = `<div class="friend-avatar"></div><strong>${escapeHtml(document.getElementById('display-username').innerText)}</strong>`;
+            const ownAppearance = getLocalAppearance();
+            if (ownAppearance.avatarImage) selfCard.querySelector('.friend-avatar').style.background = `center / cover no-repeat url("${ownAppearance.avatarImage}")`;
+            list.appendChild(selfCard);
+            const onlineFriends = friendList.filter(friend => friend.online);
+            if (!onlineFriends.length) {
+                return;
+            }
+            onlineFriends.forEach(friend => {
+                const card = document.createElement('div');
+                card.className = 'friends-strip-card';
+                card.innerHTML = `<div class="friend-avatar"></div><strong>${escapeHtml(friend.name)}</strong>`;
+                if (friend.appearance?.avatarImage) card.querySelector('.friend-avatar').style.background = `center / cover no-repeat url("${friend.appearance.avatarImage}")`;
+                if (friend.gameId) {
+                    const button = document.createElement('button');
+                    button.textContent = 'Join';
+                    button.onclick = () => joinFriend(friend);
+                    card.appendChild(button);
+                }
+                list.appendChild(card);
+            });
+        }
+
+            function sendAppearanceUpdate() {
+                if (gameSocket && gameSocket.connected) {
+                    gameSocket.emit('update_appearance', { appearance: getLocalAppearance() });
+                }
+                renderHomeFriends(friends);
+            }
+
+        function joinFriend(friend) {
+            leaveGame();
+            window.joiningFriendName = friend.name;
+            launchGame(friend.gameTitle || 'Friend\'s Game', friend.gameType || 'park', friend.gameId, Boolean(friend.gameIsUserCreated));
+        }
+
+        function showFriendToast(message, actions = []) {
+            const toast = document.getElementById('friend-toast');
+            toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+            actions.forEach(action => {
+                const button = document.createElement('button');
+                button.textContent = action.label;
+                button.className = action.className || '';
+                button.onclick = () => { action.onClick(); toast.style.display = 'none'; };
+                toast.appendChild(button);
+            });
+            toast.style.display = 'flex';
+        }
+
+        function requestFriend(playerId, playerName) {
+            if (!gameSocket || !gameSocket.connected) return;
+            gameSocket.emit('friend_request', { targetId: playerId });
+            showFriendToast(`Friend request sent to ${playerName}.`, [{ label: 'Close', className: 'friend-dismiss', onClick: () => {} }]);
+        }
+
+        function showFriendAction(playerId, playerName) {
+            pendingFriendTarget = { playerId, playerName };
+            showFriendToast(`Send friend request to ${playerName}?`, [
+                { label: 'Send Request', onClick: () => requestFriend(playerId, playerName) },
+                { label: 'Cancel', className: 'friend-dismiss', onClick: () => {} }
+            ]);
+        }
+
+        // Dynamic Published Games List with LocalStorage Persistence
+        let publishedGames = JSON.parse(localStorage.getItem('roblox_dx_games')) || [
+            { id: 'default-park', title: 'Classic Park Obby DX 🏰🌳', type: 'park', emoji: '🏰🌳', players: '1.2K', isUserCreated: false }
+        ];
+        let selectedGameThumbnail = '';
+
+        function previewGameThumbnail(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('game-thumbnail-preview');
+            if (!file || !file.type.startsWith('image/')) {
+                selectedGameThumbnail = '';
+                preview.removeAttribute('src');
+                preview.style.display = 'none';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                selectedGameThumbnail = reader.result;
+                preview.src = selectedGameThumbnail;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderPublishedGames() {
+            const grid = document.getElementById('published-games-grid');
+            grid.innerHTML = '';
+            
+            if (publishedGames.length === 0) {
+                grid.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1; padding: 20px; text-align: center;">No games published yet! Click "Create" in the sidebar to make and publish your own game.</div>';
+                return;
+            }
+
+            publishedGames.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                const currentUsername = document.getElementById('display-username').innerText;
+                const canDelete = game.isUserCreated && (!game.owner || game.owner === currentUsername);
+                card.innerHTML = `
+                    <div class="game-thumbnail">${game.thumbnail ? `<img src="${game.thumbnail}" alt="${escapeHtml(game.title)} thumbnail">` : (game.emoji || 'No thumbnail')}</div>
+                    <div class="game-name">${game.title}</div>
+                    <div class="game-stats">👍 98% • 👤 ${game.players ?? 0} playing now</div>
+                    <button class="play-btn" onclick="launchGame('${escapeHtml(game.title)}', '${game.type}', '${game.id}', ${game.isUserCreated !== false && game.id !== 'default-park'})">▶ Play</button>
+                    ${canDelete ? `<button class="delete-game-btn" onclick="deleteOwnedGame('${game.id}')">Delete World</button>` : ''}
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function publishNewGame() {
+            const titleInput = document.getElementById('new-game-title');
+            const typeInput = document.getElementById('new-game-type');
+
+            const title = titleInput.value.trim() || 'Untitled Experience';
+            const type = typeInput.value;
+            const spawnItems = [...document.querySelectorAll('.spawn-items-group input:checked')].map(input => input.value);
+
+            const newGame = {
+                id: 'game-' + Date.now(),
+                title: title,
+                type: type,
+                thumbnail: selectedGameThumbnail,
+                spawnItems,
+                owner: document.getElementById('display-username').innerText,
+                players: 0,
+                isUserCreated: true
+            };
+
+            publishedGames.unshift(newGame);
+            localStorage.setItem('roblox_dx_games', JSON.stringify(publishedGames));
+
+            userRobux += 50;
+            localStorage.setItem(robuxBalanceStorageKey, userRobux);
+            document.getElementById('robux-display').innerText = userRobux;
+
+            alert(`Success! "${title}" has been published and is now available for everyone to play!`);
+            
+            switchView('home', document.querySelector('.sidebar-item'));
+            renderPublishedGames();
+
+            titleInput.value = '';
+            document.getElementById('new-game-thumbnail').value = '';
+            document.getElementById('game-thumbnail-preview').removeAttribute('src');
+            document.getElementById('game-thumbnail-preview').style.display = 'none';
+            selectedGameThumbnail = '';
+            document.querySelectorAll('.spawn-items-group input').forEach(input => { input.checked = false; });
+        }
+
+        function deleteOwnedGame(gameId) {
+            const currentUsername = document.getElementById('display-username').innerText;
+            const game = publishedGames.find(item => item.id === gameId);
+            if (!game || !game.isUserCreated || (game.owner && game.owner !== currentUsername)) return;
+            if (!confirm(`Delete "${game.title}" permanently?`)) return;
+            publishedGames = publishedGames.filter(item => item.id !== gameId);
+            localStorage.setItem('roblox_dx_games', JSON.stringify(publishedGames));
+            renderPublishedGames();
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+        }
+
+        // Catalog Items Configuration
+        const catalogItemsConfig = [
+            { id: 'cap', name: 'Classic Gonblox Cap', icon: '🧢', price: 0, defaultOwned: true },
+            { id: 'dominus', name: 'Ice Dominus', icon: '🧊', price: 50, defaultOwned: false },
+            { id: 'headless', name: 'Headless Horseman', icon: '👻', price: 150, defaultOwned: false },
+            { id: 'catears', name: 'Cute Cat Ears', icon: '🐱', price: 50, defaultOwned: false },
+            { id: 'gloves', name: 'Pro Gamer Gloves', icon: '🥊', price: 15, defaultOwned: false },
+            { id: 'headphones', name: 'Studio Headphones', icon: '🎧', price: 25, defaultOwned: false },
+            { id: 'shortjeans', name: 'Summer Shortjeans', icon: '🩳', price: 10, defaultOwned: false },
+            { id: 'beanie', name: 'Cozy Winter Beanie', icon: '🧶', price: 20, defaultOwned: false },
+            { id: 'boyhair', name: 'Spiky Boy Hair', icon: '👦', price: 30, defaultOwned: false },
+            { id: 'girlhair', name: 'Long Blonde Girl Hair', icon: '👧', price: 30, defaultOwned: false },
+            { id: 'valkyrie', name: 'Valkyrie Helm', icon: '👑', price: 80, defaultOwned: false },
+            { id: 'swords', name: 'Gonblox Sword Pack', icon: '⚔️', price: 40, defaultOwned: false },
+            { id: 'fedora', name: 'Default Fedora', icon: '🎩', price: 0, defaultOwned: false },
+            { id: 'cone', name: 'Party Cone Hat', icon: '🥳', price: 0, defaultOwned: false },
+            { id: 'glasses', name: 'Classic Sunglasses', icon: '🕶️', price: 0, defaultOwned: false }
+        ];
+
+        let userInventory = {};
+        let equippedItems = {};
+
+        catalogItemsConfig.forEach(item => {
+            userInventory[item.id] = item.defaultOwned;
+            equippedItems[item.id] = (item.id === 'cap');
+        });
+
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid-container');
+            grid.innerHTML = '';
+            catalogItemsConfig.forEach(item => {
+                const isOwned = userInventory[item.id];
+                const isEquipped = equippedItems[item.id];
+                
+                let btnText = "Get Free";
+                let btnClass = "action-item-btn owned-get";
+                if (item.price > 0 && !isOwned) {
+                    btnText = `Buy (${item.price} GB)`;
+                    btnClass = "action-item-btn";
+                } else if (isOwned) {
+                    if (isEquipped) {
+                        btnText = "Equipped";
+                        btnClass = "action-item-btn equipped";
+                    } else {
+                        btnText = "Equip";
+                        btnClass = "action-item-btn owned-get";
+                    }
+                }
+
+                const card = document.createElement('div');
+                card.className = 'catalog-item-card';
+                card.innerHTML = `
+                    <div class="catalog-item-icon">${item.icon}</div>
+                    <div class="catalog-item-name">${item.name}</div>
+                    <div class="catalog-item-price">${item.price === 0 ? 'FREE' : item.price + ' Gonbux'}</div>
+                    <button class="${btnClass}" onclick="handleItemAction('${item.id}')">${btnText}</button>
+                `;
+                grid.appendChild(card);
+            });
+            document.getElementById('robux-display').innerText = userRobux;
+        }
+
+        function handleItemAction(itemId) {
+            const item = catalogItemsConfig.find(i => i.id === itemId);
+            if (!userInventory[itemId]) {
+                if (userRobux >= item.price) {
+                    userRobux -= item.price;
+                    userInventory[itemId] = true;
+                    equippedItems[itemId] = true;
+                    renderCatalog();
+                    if (isPreviewInitialized) initAvatarPreview();
+                } else {
+                    alert("Not enough Gonbux! Play games to earn 1 Gonbux every 2 minutes.");
+                }
+            } else {
+                equippedItems[itemId] = !equippedItems[itemId];
+                renderCatalog();
+                if (isPreviewInitialized) initAvatarPreview();
+            }
+            sendAppearanceUpdate();
+        }
+
+        function setGender(gender) {
+            userGender = gender;
+            localStorage.setItem('roblox_dx_selected_gender', gender);
+
+            const bodyButtons = [
+                document.getElementById('gender-female-btn'),
+                document.getElementById('gender-male-btn'),
+                document.getElementById('avatar-body-female'),
+                document.getElementById('avatar-body-male')
+            ].filter(Boolean);
+
+            bodyButtons.forEach(button => button.classList.remove('active'));
+            if (gender === 'female') {
+                document.getElementById('gender-female-btn')?.classList.add('active');
+                document.getElementById('avatar-body-female')?.classList.add('active');
+                avatarColors.torso = 0x22c55e;
+                if (document.getElementById('torsoColor')) document.getElementById('torsoColor').value = '#22c55e';
+            } else {
+                document.getElementById('gender-male-btn')?.classList.add('active');
+                document.getElementById('avatar-body-male')?.classList.add('active');
+                avatarColors.torso = 0x3b82f6;
+                if (document.getElementById('torsoColor')) document.getElementById('torsoColor').value = '#3b82f6';
+            }
+            if (isPreviewInitialized) initAvatarPreview();
+            sendAppearanceUpdate();
+        }
+
+        const authUsersStorageKey = 'roblox_dx_auth_users';
+
+        function getStoredAuthUsers() {
+            try {
+                return JSON.parse(localStorage.getItem(authUsersStorageKey) || '{}');
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function saveStoredAuthUsers(users) {
+            localStorage.setItem(authUsersStorageKey, JSON.stringify(users));
+        }
+
+        function finishAuth(username) {
+            const safeUsername = username.trim();
+            if (!safeUsername) return;
+            document.getElementById('display-username').innerText = safeUsername;
+            if (gameSocket && gameSocket.connected) gameSocket.emit('identify_user', { name: safeUsername, appearance: getLocalAppearance() });
+            document.getElementById('auth-overlay').style.display = 'none';
+        }
+
+        function submitAuth() {
+            const usernameInput = document.getElementById('signup-username').value.trim();
+            const passwordInput = document.getElementById('signup-password').value.trim();
+
+            if (!usernameInput || !passwordInput) {
+                alert('Please enter both a username and password to sign up.');
+                return;
+            }
+
+            const users = getStoredAuthUsers();
+            if (users[usernameInput]) {
+                alert('That username is already taken. Try logging in instead.');
+                return;
+            }
+
+            users[usernameInput] = { username: usernameInput, password: passwordInput };
+            saveStoredAuthUsers(users);
+            finishAuth(usernameInput);
+        }
+
+        function loginAuth() {
+            const usernameInput = document.getElementById('signup-username').value.trim();
+            const passwordInput = document.getElementById('signup-password').value.trim();
+
+            if (!usernameInput || !passwordInput) {
+                alert('Please enter your username and password to log in.');
+                return;
+            }
+
+            const users = getStoredAuthUsers();
+            const account = users[usernameInput];
+            if (!account) {
+                alert('No account found for that username. Please sign up first.');
+                return;
+            }
+
+            if (account.password !== passwordInput) {
+                alert('Incorrect password. Please try again.');
+                return;
+            }
+
+            finishAuth(usernameInput);
+        }
+
+        function switchView(viewName, element) {
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            if(element) element.classList.add('active');
+
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active-view'));
+            
+            if(viewName === 'catalog') {
+                document.getElementById('catalog-view').classList.add('active-view');
+                renderCatalog();
+            }
+            else if(viewName === 'customize') {
+                document.getElementById('customize-view').classList.add('active-view');
+                initAvatarPreview();
+            }
+            else if(viewName === 'create') {
+                document.getElementById('create-view').classList.add('active-view');
+            }
+            else {
+                document.getElementById('home-view').classList.add('active-view');
+                renderPublishedGames();
+            }
+        }
+
+        let avatarColors = {
+            head: 0xfde047,
+            torso: 0x22c55e,
+            leftArm: 0xe2e8f0,
+            rightArm: 0xe2e8f0,
+            leftLeg: 0xe2e8f0,
+            rightLeg: 0xe2e8f0
+        };
+
+        let avatarTextures = {
+            head: null,
+            torso: null,
+            headSource: null,
+            torsoSource: null
+        };
+
+        function updateAvatarColor(part, hexColor) {
+            avatarColors[part] = parseInt(hexColor.replace('#', '0x'));
+            avatarTextures[part] = null;
+            avatarTextures[`${part}Source`] = null;
+            if (previewMeshParts && previewMeshParts[part]) {
+                previewMeshParts[part].material.color.setHex(avatarColors[part]);
+                previewMeshParts[part].material.map = null;
+                previewMeshParts[part].material.needsUpdate = true;
+            }
+            sendAppearanceUpdate();
+        }
+
+        function uploadCustomTexture(part, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const texture = new THREE.Texture(img);
+                    texture.needsUpdate = true;
+                    avatarTextures[part] = texture;
+                    avatarTextures[`${part}Source`] = e.target.result;
+
+                    if (previewMeshParts && previewMeshParts[part]) {
+                        previewMeshParts[part].material.map = texture;
+                        previewMeshParts[part].material.color.setHex(0xffffff);
+                        previewMeshParts[part].material.needsUpdate = true;
+                    }
+                    sendAppearanceUpdate();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createRobloxCharacter() {
+            const group = new THREE.Group();
+            const legH = 1.0, torsoH = 1.2, headH = 0.8;
+
+            const headGeo = new THREE.BoxGeometry(0.8, headH, 0.8);
+            
+            let torsoGeo;
+            if (userGender === 'female') {
+                torsoGeo = new THREE.BoxGeometry(1.0, torsoH, 0.5);
+                const positionAttribute = torsoGeo.attributes.position;
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    let y = positionAttribute.getY(i);
+                    if (y < 0) {
+                        positionAttribute.setX(i, positionAttribute.getX(i) * 0.55);
+                    } else if (y > 0) {
+                        positionAttribute.setX(i, positionAttribute.getX(i) * 1.05);
+                    }
+                }
+                torsoGeo.computeVertexNormals();
+            } else {
+                torsoGeo = new THREE.BoxGeometry(1.0, torsoH, 0.5);
+            }
+
+            const armGeo = new THREE.BoxGeometry(0.4, 1.1, 0.5);
+            const legGeo = new THREE.BoxGeometry(0.45, legH, 0.5);
+
+            headGeo.translate(0, headH / 2, 0);
+            torsoGeo.translate(0, torsoH / 2, 0);
+            armGeo.translate(0, -0.55, 0);
+            legGeo.translate(0, -0.5, 0);
+
+            const leftLeg = new THREE.Mesh(legGeo, new THREE.MeshLambertMaterial({ color: avatarColors.leftLeg }));
+            leftLeg.position.set(-0.26, legH, 0);
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, new THREE.MeshLambertMaterial({ color: avatarColors.rightLeg }));
+            rightLeg.position.set(0.26, legH, 0);
+            group.add(rightLeg);
+
+            const torsoMatArgs = avatarTextures.torso ? { map: avatarTextures.torso } : { color: avatarColors.torso };
+            const torso = new THREE.Mesh(torsoGeo, new THREE.MeshLambertMaterial(torsoMatArgs));
+            torso.position.set(0, legH, 0);
+            group.add(torso);
+
+            if (userGender === 'female') {
+                const hips = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.9, 0.42, 0.58),
+                    new THREE.MeshLambertMaterial(torsoMatArgs)
+                );
+                hips.position.set(0, legH + 0.1, 0);
+                group.add(hips);
+            }
+
+            if (equippedItems.shortjeans) {
+                const shortsMesh = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.5, 0.52), new THREE.MeshLambertMaterial({ color: 0x1d4ed8 }));
+                shortsMesh.position.set(0, legH - 0.1, 0);
+                group.add(shortsMesh);
+            }
+
+            const leftArm = new THREE.Mesh(armGeo, new THREE.MeshLambertMaterial({ color: avatarColors.leftArm }));
+            leftArm.position.set(-0.7, legH + torsoH, 0);
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, new THREE.MeshLambertMaterial({ color: avatarColors.rightArm }));
+            rightArm.position.set(0.7, legH + torsoH, 0);
+            group.add(rightArm);
+
+            if (equippedItems.gloves) {
+                const gloveGeo = new THREE.BoxGeometry(0.44, 0.45, 0.54);
+                const gloveMat = new THREE.MeshLambertMaterial({ color: 0xf97316 });
+                const lGlove = new THREE.Mesh(gloveGeo, gloveMat);
+                lGlove.position.set(-0.7, legH + torsoH - 0.75, 0);
+                group.add(lGlove);
+                const rGlove = new THREE.Mesh(gloveGeo, gloveMat);
+                rGlove.position.set(0.7, legH + torsoH - 0.75, 0);
+                group.add(rGlove);
+            }
+
+            const headMatArgs = avatarTextures.head ? { map: avatarTextures.head } : { color: avatarColors.head };
+            const head = new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial(headMatArgs));
+            head.position.set(0, legH + torsoH, 0);
+            
+            if (equippedItems.headless) {
+                head.scale.set(0.001, 0.001, 0.001);
+            } else if (!avatarTextures.head) {
+                const eyeGeo = new THREE.BoxGeometry(0.12, 0.12, 0.02);
+                const faceMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+
+                const leftEye = new THREE.Mesh(eyeGeo, faceMat);
+                leftEye.position.set(-0.18, 0.45, 0.41);
+                head.add(leftEye);
+
+                const rightEye = new THREE.Mesh(eyeGeo, faceMat);
+                rightEye.position.set(0.18, 0.45, 0.41);
+                head.add(rightEye);
+
+                const smileGroup = new THREE.Group();
+                smileGroup.position.set(0, 0.22, 0.41);
+                
+                const smileCenter = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.02), faceMat);
+                smileCenter.position.set(0, 0, 0);
+                smileGroup.add(smileCenter);
+
+                const smileLeftCorner = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.02), faceMat);
+                smileLeftCorner.position.set(-0.12, 0.03, 0);
+                smileGroup.add(smileLeftCorner);
+
+                const smileRightCorner = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.02), faceMat);
+                smileRightCorner.position.set(0.12, 0.03, 0);
+                smileGroup.add(smileRightCorner);
+
+                head.add(smileGroup);
+            }
+
+            if (equippedItems.cap) {
+                const capGroup = new THREE.Group();
+                const capDome = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.35, 0.84), new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+                capDome.position.set(0, 0.82, 0);
+                const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.06, 0.4), new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+                capBrim.position.set(0, 0.72, 0.22);
+                capGroup.add(capDome);
+                capGroup.add(capBrim);
+                head.add(capGroup);
+            }
+
+            if (equippedItems.catears) {
+                const catEarsGroup = new THREE.Group();
+                const earMat = new THREE.MeshLambertMaterial({ color: 0xf472b6 });
+                [-0.3, 0.3].forEach(earX => {
+                    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.23, 0.48, 4), earMat);
+                    ear.position.set(earX, 0.86, 0.3);
+                    catEarsGroup.add(ear);
+                });
+                head.add(catEarsGroup);
+            }
+
+            if (equippedItems.dominus) {
+                const dominusGroup = new THREE.Group();
+                const hoodMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+                const darkMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
+                
+                const hoodTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 1.0), hoodMat);
+                hoodTop.position.set(0, 0.85, 0);
+                dominusGroup.add(hoodTop);
+
+                const leftEar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), darkMat);
+                leftEar.position.set(-0.5, 0.55, -0.2);
+                dominusGroup.add(leftEar);
+
+                const rightEar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), darkMat);
+                rightEar.position.set(0.5, 0.55, -0.2);
+                dominusGroup.add(rightEar);
+
+                for (let i = 0; i < 3; i++) {
+                    const spike = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), hoodMat);
+                    spike.position.set(0.3 - (i * 0.3), 0.7 + (i * 0.15), -0.55);
+                    spike.rotation.x = -0.4;
+                    dominusGroup.add(spike);
+                }
+                head.add(dominusGroup);
+            }
+
+            if (equippedItems.valkyrie) {
+                const valkGroup = new THREE.Group();
+                const goldMat = new THREE.MeshLambertMaterial({ color: 0xeab308 });
+                const wingMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+                const helmetBase = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 0.9), goldMat);
+                helmetBase.position.set(0, 0.8, 0);
+                valkGroup.add(helmetBase);
+
+                const leftWing = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.5), wingMat);
+                leftWing.position.set(-0.55, 1.0, 0);
+                leftWing.rotation.z = -0.3;
+                valkGroup.add(leftWing);
+
+                const rightWing = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.5), wingMat);
+                rightWing.position.set(0.55, 1.0, 0);
+                rightWing.rotation.z = 0.3;
+                valkGroup.add(rightWing);
+
+                head.add(valkGroup);
+            }
+
+            if (equippedItems.swords) {
+                const swordsGroup = new THREE.Group();
+                const scabbardMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+
+                const scabbard1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.2, 0.2), scabbardMat);
+                scabbard1.position.set(-0.3, 0.5, -0.32);
+                scabbard1.rotation.z = -0.2;
+                swordsGroup.add(scabbard1);
+
+                const scabbard2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.2, 0.2), scabbardMat);
+                scabbard2.position.set(0.3, 0.5, -0.32);
+                scabbard2.rotation.z = 0.2;
+                swordsGroup.add(scabbard2);
+
+                torso.add(swordsGroup);
+            }
+
+            if (equippedItems.fedora) {
+                const fedoraGroup = new THREE.Group();
+                const fedoraBase = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 1.2), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+                fedoraBase.position.set(0, 0.75, 0);
+                const fedoraTop = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.8), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+                fedoraTop.position.set(0, 0.98, 0);
+                fedoraGroup.add(fedoraBase);
+                fedoraGroup.add(fedoraTop);
+                head.add(fedoraGroup);
+            }
+
+            if (equippedItems.cone) {
+                const coneMesh = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 4), new THREE.MeshLambertMaterial({ color: 0xf97316 }));
+                coneMesh.position.set(0, 1.15, 0);
+                head.add(coneMesh);
+            }
+
+            if (equippedItems.glasses) {
+                const glassesGroup = new THREE.Group();
+                const glassMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+                const lLens = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.15, 0.04), glassMat);
+                lLens.position.set(-0.18, 0.45, 0.42);
+                const rLens = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.15, 0.04), glassMat);
+                rLens.position.set(0.18, 0.45, 0.42);
+                const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.04), glassMat);
+                bridge.position.set(0, 0.5, 0.42);
+                glassesGroup.add(lLens);
+                glassesGroup.add(rLens);
+                glassesGroup.add(bridge);
+                head.add(glassesGroup);
+            }
+
+            if (equippedItems.headphones) {
+                const hpGroup = new THREE.Group();
+                const hpMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+                const band = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.2), hpMat);
+                band.position.set(0, 0.85, 0);
+                const lEar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.3), hpMat);
+                lEar.position.set(-0.45, 0.65, 0);
+                const rEar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.3), hpMat);
+                rEar.position.set(0.45, 0.65, 0);
+                hpGroup.add(band);
+                hpGroup.add(lEar);
+                hpGroup.add(rEar);
+                head.add(hpGroup);
+            }
+
+            if (equippedItems.beanie) {
+                const beanieMesh = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.4, 0.86), new THREE.MeshLambertMaterial({ color: 0x9333ea }));
+                beanieMesh.position.set(0, 0.8, 0);
+                head.add(beanieMesh);
+            }
+
+            if (equippedItems.boyhair) {
+                const hairGroup = new THREE.Group();
+                const hairMat = new THREE.MeshLambertMaterial({ color: 0x1c1917 });
+                const topHair = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.3, 0.86), hairMat);
+                topHair.position.set(0, 0.85, 0);
+                const spikeHair = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.4), hairMat);
+                spikeHair.position.set(0, 1.05, 0.2);
+                hairGroup.add(topHair);
+                hairGroup.add(spikeHair);
+                head.add(hairGroup);
+            }
+
+            if (equippedItems.girlhair) {
+                const hairGroup = new THREE.Group();
+                const hairMat = new THREE.MeshLambertMaterial({ color: 0xfacc15 });
+                const topHair = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.35, 0.88), hairMat);
+                topHair.position.set(0, 0.82, 0);
+                const backHair = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.8, 0.3), hairMat);
+                backHair.position.set(0, 0.45, -0.4);
+                hairGroup.add(topHair);
+                hairGroup.add(backHair);
+                head.add(hairGroup);
+            }
+
+            group.add(head);
+
+            return { group, parts: { head, torso, leftArm, rightArm, leftLeg, rightLeg } };
+        }
+
+        let previewScene, previewRenderer, previewMeshParts = {};
+        let isPreviewInitialized = false;
+        let previewCamera;
+
+        function initAvatarPreview() {
+            const container = document.querySelector('.preview-canvas-container');
+            const canvas = document.getElementById('avatar-preview-canvas');
+            if (isPreviewInitialized) {
+                previewScene.children = [];
+                previewScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                dirLight.position.set(5, 10, 7);
+                previewScene.add(dirLight);
+
+                const charData = createRobloxCharacter();
+                charData.group.position.y = -1.1;
+                previewScene.add(charData.group);
+                previewMeshParts = charData.parts;
+                onWindowResizePreview();
+                return;
+            }
+
+            previewScene = new THREE.Scene();
+            previewScene.background = new THREE.Color(0xe9ecef);
+
+            previewCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            previewCamera.position.set(0, 1.2, 4);
+
+            previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            previewRenderer.setSize(container.clientWidth, container.clientHeight);
+
+            previewScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            dirLight.position.set(5, 10, 7);
+            previewScene.add(dirLight);
+
+            const charData = createRobloxCharacter();
+            charData.group.position.y = -1.1;
+            previewScene.add(charData.group);
+
+            previewMeshParts = charData.parts;
+            isPreviewInitialized = true;
+
+            function animatePreview() {
+                requestAnimationFrame(animatePreview);
+                charData.group.rotation.y += 0.01;
+                
+                const pCtx = previewRenderer.getContext();
+                if (pCtx && typeof pCtx.imageSmoothingEnabled !== 'undefined') {
+                    pCtx.imageSmoothingEnabled = false;
+                }
+
+                previewRenderer.render(previewScene, previewCamera);
+            }
+            animatePreview();
+        }
+
+        function onWindowResizePreview() {
+            const container = document.querySelector('.preview-canvas-container');
+            if(previewRenderer && container && previewCamera) {
+                previewCamera.aspect = container.clientWidth / container.clientHeight;
+                previewCamera.updateProjectionMatrix();
+                previewRenderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        }
+        window.addEventListener('resize', onWindowResizePreview);
+
+        let gameScene, gameRenderer, playerAvatar, gameCamera;
+        let rideableCar = null;
+        let isRidingCar = false;
+        const remotePlayers = new Map();
+        const serverPlayers = new Map();
+        const remoteChatBubbles = new Map();
+        let lastNetworkMoveTime = 0;
+
+        function getDeviceLabel() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            if (/ipad|tablet|playbook|silk/.test(userAgent)) return 'Tablet';
+            if (/mobi|android|iphone|ipod/.test(userAgent)) return 'Mobile';
+            return 'Desktop';
+        }
+
+        function renderServerLeaderboard() {
+            const list = document.getElementById('leaderboard-players');
+            const count = document.getElementById('leaderboard-count');
+            if (!list || !count) return;
+            const playersInServer = [...serverPlayers.values()];
+            count.textContent = playersInServer.length;
+            list.innerHTML = playersInServer.map(player => `
+                <div class="leaderboard-player">
+                    <span class="leaderboard-player-name">${escapeHtml(String(player.name || 'Player'))}</span>
+                    <span class="leaderboard-device">${escapeHtml(String(player.device || 'Unknown'))}</span>
+                </div>
+            `).join('');
+        }
+
+        function addRemotePlayer(id, playerData) {
+            if (!gameScene || id === gameSocket?.id || (playerData.gameId && playerData.gameId !== currentGameId)) return;
+            removeRemotePlayer(id);
+            const remoteAvatar = createCharacterFromAppearance(playerData.appearance).group;
+            remoteAvatar.position.set(Number(playerData.x) || 0, Number(playerData.y) || 0, Number(playerData.z) || 0);
+            remoteAvatar.userData.playerName = playerData.name;
+            remoteAvatar.userData.playerId = id;
+            gameScene.add(remoteAvatar);
+            remotePlayers.set(id, remoteAvatar);
+        }
+
+        function getLocalAppearance() {
+            const previewCanvas = document.getElementById('avatar-preview-canvas');
+            let avatarImage = null;
+            if (previewCanvas && isPreviewInitialized) {
+                const thumbnailCanvas = document.createElement('canvas');
+                thumbnailCanvas.width = 96;
+                thumbnailCanvas.height = 96;
+                thumbnailCanvas.getContext('2d').drawImage(previewCanvas, 0, 0, 96, 96);
+                avatarImage = thumbnailCanvas.toDataURL('image/jpeg', 0.75);
+            }
+            return {
+                gender: userGender,
+                colors: { ...avatarColors },
+                equippedItems: { ...equippedItems },
+                avatarImage,
+                textures: {
+                    head: avatarTextures.headSource,
+                    torso: avatarTextures.torsoSource
+                }
+            };
+        }
+
+        function createCharacterFromAppearance(appearance) {
+            if (!appearance) return createRobloxCharacter();
+            const savedGender = userGender;
+            const savedColors = avatarColors;
+            const savedEquippedItems = equippedItems;
+            const savedTextures = avatarTextures;
+            userGender = appearance.gender || 'female';
+            avatarColors = { ...savedColors, ...(appearance.colors || {}) };
+            equippedItems = { ...savedEquippedItems, ...(appearance.equippedItems || {}) };
+            avatarTextures = { head: null, torso: null };
+            const character = createRobloxCharacter();
+            userGender = savedGender;
+            avatarColors = savedColors;
+            equippedItems = savedEquippedItems;
+            avatarTextures = savedTextures;
+
+            Object.entries(appearance.textures || {}).forEach(([part, source]) => {
+                if (!source || !character.parts[part]) return;
+                const image = new Image();
+                image.onload = () => {
+                    const texture = new THREE.Texture(image);
+                    texture.needsUpdate = true;
+                    character.parts[part].material.map = texture;
+                    character.parts[part].material.color.setHex(0xffffff);
+                    character.parts[part].material.needsUpdate = true;
+                };
+                image.src = source;
+            });
+            return character;
+        }
+
+        function removeRemotePlayer(id) {
+            const remoteAvatar = remotePlayers.get(id);
+            if (!remoteAvatar) return;
+            gameScene.remove(remoteAvatar);
+            remotePlayers.delete(id);
+            const bubble = remoteChatBubbles.get(id);
+            if (bubble) bubble.remove();
+            remoteChatBubbles.delete(id);
+        }
+
+        function showRemoteChatBubble(id, message) {
+            const remoteAvatar = remotePlayers.get(id);
+            if (!remoteAvatar) return;
+            const oldBubble = remoteChatBubbles.get(id);
+            if (oldBubble) oldBubble.remove();
+
+            const bubble = document.createElement('div');
+            bubble.className = 'remote-chat-bubble';
+            bubble.textContent = message;
+            document.getElementById('game-view').appendChild(bubble);
+            remoteChatBubbles.set(id, bubble);
+            setTimeout(() => {
+                if (remoteChatBubbles.get(id) === bubble) {
+                    bubble.remove();
+                    remoteChatBubbles.delete(id);
+                }
+            }, 4000);
+        }
+
+        function updateRemotePlayer(id, playerData) {
+            const remoteAvatar = remotePlayers.get(id);
+            if (!remoteAvatar || (playerData.gameId && playerData.gameId !== currentGameId)) return;
+            remoteAvatar.position.set(playerData.x, playerData.y, playerData.z);
+        }
+
+        function joinCurrentGame() {
+            if (!gameSocket || !gameSocket.connected || !gameActive) return;
+            gameSocket.emit('join_game', {
+                name: document.getElementById('display-username').innerText,
+                color: '#3b82f6',
+                gameType: currentGameType,
+                gameId: currentGameId,
+                appearance: getLocalAppearance(),
+                device: getDeviceLabel(),
+                spawnItems: currentGameSpawnItems,
+                gameTitle: document.getElementById('current-game-title').innerText,
+                gameIsUserCreated: currentGameIsUserCreated
+            });
+        }
+
+        let keysPressed = {};
+        let gameActive = false;
+        let isEscMenuOpen = false;
+        let isEmoteWheelOpen = false;
+        let activeEmote = null;
+        let emoteTimer = 0;
+        let playerParts = {};
+        let colliders = [];
+        let movingPlatforms = [];
+
+        let playerVelocityY = 0;
+        let isGrounded = false;
+        const gravity = -0.012;
+        const jumpForce = 0.25;
+
+        let gameSettings = {
+            shiftLock: false,
+            sensitivity: 1,
+            fullscreen: false,
+            brightness: 1
+        };
+        const sensitivityValues = [0.002, 0.005, 0.009];
+        const sensitivityLabels = ['Low', 'Medium', 'High'];
+        const brightnessValues = [0.4, 0.7, 1.2];
+
+        let isShiftLocked = false;
+        let cameraAngleX = 0;
+        let cameraAngleY = 0.4;
+        let currentBob = 0;
+        let currentRotationY = 0;
+        let ambientLightRef = null;
+
+        function launchGame(title, type, gameId, isUserCreated) {
+            currentGameType = type || 'park';
+            currentGameId = gameId || `${currentGameType}-default`;
+            currentGameIsUserCreated = Boolean(isUserCreated);
+            const publishedGame = publishedGames.find(game => game.id === currentGameId);
+            currentGameSpawnItems = currentGameIsUserCreated ? (publishedGame?.spawnItems || []) : [];
+            activeSpawnItem = null;
+            document.getElementById('current-game-title').innerText = title;
+            document.getElementById('game-view').style.display = 'block';
+            document.getElementById('chatInputContainer').style.display = 'block';
+            document.getElementById('leftToolbar').style.display = 'flex';
+            document.getElementById('builderToolbar').style.display = currentGameIsUserCreated ? 'flex' : 'none';
+            configureSpawnItemBar();
+            
+            isShiftLocked = gameSettings.shiftLock;
+            isEscMenuOpen = false;
+            isEmoteWheelOpen = false;
+            document.getElementById('esc-menu').style.display = 'none';
+            document.getElementById('emote-wheel-overlay').style.display = 'none';
+            document.getElementById('shift-lock-cursor').style.display = isShiftLocked ? 'block' : 'none';
+            
+            robuxSecondsElapsed = 0;
+            if (robuxInterval) clearInterval(robuxInterval);
+            robuxInterval = setInterval(() => {
+                if (gameActive && !isEscMenuOpen) {
+                    robuxSecondsElapsed++;
+                    let timeLeft = 120 - (robuxSecondsElapsed % 120);
+                    let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                    let secs = (timeLeft % 60).toString().padStart(2, '0');
+                    document.getElementById('robux-timer-overlay').innerText = `Next Gonbux in: ${mins}:${secs}`;
+
+                    if (robuxSecondsElapsed % 120 === 0) {
+                        userRobux += 1;
+                        document.getElementById('robux-display').innerText = userRobux;
+                    }
+                }
+            }, 1000);
+
+            initGameEngine();
+        }
+
+        function configureSpawnItemBar() {
+            const bar = document.getElementById('spawn-item-bar');
+            if (!bar) return;
+            bar.style.display = currentGameSpawnItems.length ? 'flex' : 'none';
+            bar.querySelectorAll('button').forEach(button => {
+                const enabled = currentGameSpawnItems.includes(button.dataset.tool);
+                button.style.display = enabled || button.dataset.tool === 'empty' ? 'inline-block' : 'none';
+                button.classList.remove('active');
+                button.onclick = () => {
+                    if (button.dataset.tool === 'empty') return;
+                    activeSpawnItem = activeSpawnItem === button.dataset.tool ? null : button.dataset.tool;
+                    bar.querySelectorAll('button').forEach(itemButton => itemButton.classList.toggle('active', itemButton === button && Boolean(activeSpawnItem)));
+                    updateHeldTool();
+                };
+            });
+        }
+
+        function updateHeldTool() {
+            const hand = playerParts?.rightArm;
+            if (!hand) return;
+            if (hand.userData.heldTool) hand.remove(hand.userData.heldTool);
+            hand.userData.heldTool = null;
+            if (!activeSpawnItem) return;
+
+            const heldTool = new THREE.Group();
+            if (activeSpawnItem === 'sword') {
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.95, 0.08), new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+                blade.position.y = -0.5;
+                const guard = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.08, 0.1), new THREE.MeshLambertMaterial({ color: 0xfacc15 }));
+                guard.position.y = -1.0;
+                const grip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), new THREE.MeshLambertMaterial({ color: 0x78350f }));
+                grip.position.y = -1.18;
+                heldTool.add(blade, guard, grip);
+                heldTool.rotation.z = -0.35;
+            } else if (activeSpawnItem === 'waterGun') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.38), new THREE.MeshLambertMaterial({ color: 0x38bdf8 }));
+                const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.35, 8), new THREE.MeshLambertMaterial({ color: 0xf8fafc }));
+                nozzle.rotation.x = Math.PI / 2;
+                nozzle.position.z = 0.3;
+                const handle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.12), new THREE.MeshLambertMaterial({ color: 0xf97316 }));
+                handle.position.y = -0.18;
+                heldTool.add(body, nozzle, handle);
+            } else {
+                const coil = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.045, 8, 16), new THREE.MeshLambertMaterial({ color: activeSpawnItem === 'speedCoil' ? 0xfacc15 : 0xa855f7 }));
+                coil.rotation.x = Math.PI / 2;
+                coil.position.y = -0.65;
+                const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.08), new THREE.MeshLambertMaterial({ color: 0x475569 }));
+                handle.position.y = -0.9;
+                heldTool.add(coil, handle);
+            }
+            heldTool.position.set(0, -0.18, 0.28);
+            hand.add(heldTool);
+            hand.userData.heldTool = heldTool;
+        }
+
+        function leaveGame() {
+            gameActive = false;
+            isRidingCar = false;
+            rideableCar = null;
+            if (gameSocket && gameSocket.connected) gameSocket.emit('leave_game');
+            remotePlayers.forEach(remoteAvatar => gameScene?.remove(remoteAvatar));
+            remotePlayers.clear();
+            serverPlayers.clear();
+            renderServerLeaderboard();
+            remoteChatBubbles.forEach(bubble => bubble.remove());
+            remoteChatBubbles.clear();
+            isEscMenuOpen = false;
+            isEmoteWheelOpen = false;
+            activeEmote = null;
+            isShiftLocked = false;
+            keysPressed = {};
+            if (robuxInterval) clearInterval(robuxInterval);
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            document.getElementById('esc-menu').style.display = 'none';
+            document.getElementById('emote-wheel-overlay').style.display = 'none';
+            document.getElementById('shift-lock-cursor').style.display = 'none';
+            document.getElementById('chatInputContainer').style.display = 'none';
+            document.getElementById('leftToolbar').style.display = 'none';
+            document.getElementById('builderToolbar').style.display = 'none';
+            document.getElementById('chatBubble').style.display = 'none';
+            document.getElementById('game-view').style.display = 'none';
+        }
+
+        function respawnPlayer() {
+            if (playerAvatar) {
+                playerAvatar.position.set(0, 0, currentGameType === 'island' ? 0 : 35);
+                playerVelocityY = 0;
+            }
+            toggleEscMenu();
+        }
+
+        function toggleEscMenu() {
+            isEscMenuOpen = !isEscMenuOpen;
+            const menu = document.getElementById('esc-menu');
+            menu.style.display = isEscMenuOpen ? 'flex' : 'none';
+            if (isEscMenuOpen) {
+                keysPressed = {};
+                isMouseDown = false;
+                isEmoteWheelOpen = false;
+                document.getElementById('emote-wheel-overlay').style.display = 'none';
+            }
+        }
+
+        function toggleEmoteWheel() {
+            if (isEscMenuOpen) return;
+            isEmoteWheelOpen = !isEmoteWheelOpen;
+            const wheel = document.getElementById('emote-wheel-overlay');
+            wheel.style.display = isEmoteWheelOpen ? 'flex' : 'none';
+            if (isEmoteWheelOpen) {
+                keysPressed = {};
+            }
+        }
+
+        function triggerEmote(id, name) {
+            activeEmote = name;
+            emoteTimer = 180;
+            toggleEmoteWheel();
+
+            chatBubble.textContent = `🎵 Performing: ${name}`;
+            chatBubble.style.display = "block";
+            chatBubble.style.opacity = "1";
+            if (bubbleTimer) clearTimeout(bubbleTimer);
+            bubbleTimer = setTimeout(() => {
+                chatBubble.style.opacity = "0";
+                setTimeout(() => { chatBubble.style.display = "none"; }, 300);
+            }, 3500);
+        }
+
+        function switchEscTab(tabName, element) {
+            document.querySelectorAll('.esc-tab').forEach(t => t.classList.remove('active'));
+            element.classList.add('active');
+
+            document.querySelectorAll('.esc-content > div').forEach(pane => pane.classList.remove('active-pane'));
+            document.getElementById(tabName + '-pane').classList.add('active-pane');
+
+            const actionBoxes = document.getElementById('people-action-boxes');
+            if (tabName === 'people') {
+                actionBoxes.style.display = 'flex';
+                renderFriends();
+            } else {
+                actionBoxes.style.display = 'none';
+            }
+        }
+
+        function cycleSetting(settingKey, direction) {
+            if (settingKey === 'shiftLock') {
+                gameSettings.shiftLock = !gameSettings.shiftLock;
+                isShiftLocked = gameSettings.shiftLock;
+                document.getElementById('val-shiftLock').innerText = gameSettings.shiftLock ? 'Enabled' : 'Disabled';
+                document.getElementById('shift-lock-cursor').style.display = isShiftLocked ? 'block' : 'none';
+            } else if (settingKey === 'sensitivity') {
+                gameSettings.sensitivity = (gameSettings.sensitivity + direction + 3) % 3;
+                document.getElementById('val-sensitivity').innerText = sensitivityLabels[gameSettings.sensitivity];
+            }
+        }
+
+        function initGameEngine() {
+            gameActive = true;
+            colliders = [];
+            movingPlatforms = [];
+            placedBlocks = [];
+            loadedBlockIds = new Set();
+            keysPressed = {};
+            cameraAngleX = 0;
+            cameraAngleY = 0.4;
+            currentBob = 0;
+            currentRotationY = 0;
+
+            const canvas = document.getElementById('game-canvas');
+            const width = window.innerWidth;
+            const height = window.innerHeight - 65;
+            canvas.ondblclick = handleRemotePlayerDoubleClick;
+
+            gameScene = new THREE.Scene();
+            gameScene.background = new THREE.Color(currentGameType === 'island' ? 0xbae6fd : 0x87ceeb);
+
+            gameCamera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+            gameRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            gameRenderer.setSize(width, height);
+
+            ambientLightRef = new THREE.AmbientLight(0xffffff, brightnessValues[gameSettings.brightness]);
+            gameScene.add(ambientLightRef);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(20, 30, 20);
+            gameScene.add(sun);
+
+            if (currentGameType === 'island') {
+                buildIslandMap();
+            } else {
+                buildParkMap();
+            }
+
+            colliders.forEach((collider, index) => {
+                collider.userData.mapPartId = `${currentGameId}-map-${index}`;
+            });
+            const deletedMapParts = getDeletedMapParts();
+            colliders
+                .filter(collider => deletedMapParts.includes(`${currentGameId}:${collider.userData.mapPartId}`))
+                .forEach(collider => deleteMapPart(collider.userData.mapPartId));
+
+            joinCurrentGame();
+
+            getLocalPlacedBlocks()
+                .filter(block => block.gameType === currentGameType && block.gameId === currentGameId)
+                .forEach(addPlacedBlock);
+
+            const charData = createRobloxCharacter();
+            playerAvatar = charData.group;
+            playerAvatar.position.set(0, 0, currentGameType === 'island' ? 0 : 35);
+            gameScene.add(playerAvatar);
+            playerParts = charData.parts;
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('click', handleGameCanvasClick); // Added block building click handler
+            window.addEventListener('blur', handleWindowBlur);
+
+            let animTime = 0;
+            let clock = new THREE.Clock();
+
+            function gameLoop() {
+                if (!gameActive) return;
+                requestAnimationFrame(gameLoop);
+
+                let delta = clock.getDelta();
+
+                for (let mp of movingPlatforms) {
+                    mp.time += delta * mp.speed;
+                    mp.mesh.position[mp.axis] = mp.initialPos + Math.sin(mp.time) * mp.range;
+                }
+
+                if (!isEscMenuOpen && !isEmoteWheelOpen) {
+                    const moveSpeed = currentGameSpawnItems.includes('speedCoil') ? 0.22 : 0.12;
+                    const previousPlayerX = playerAvatar.position.x;
+                    const previousPlayerZ = playerAvatar.position.z;
+                    let moveX = 0;
+                    let moveZ = 0;
+
+                    if (keysPressed['w'] || keysPressed['arrowup']) moveZ += 1;
+                    if (keysPressed['s'] || keysPressed['arrowdown']) moveZ -= 1;
+                    if (keysPressed['a'] || keysPressed['arrowleft']) moveX += 1;
+                    if (keysPressed['d'] || keysPressed['arrowright']) moveX -= 1;
+
+                    let isMoving = (moveX !== 0 || moveZ !== 0);
+
+                    if (isMoving) {
+                        if (isShiftLocked) {
+                            let targetRot = cameraAngleX;
+                            currentRotationY = THREE.MathUtils.lerp(currentRotationY, targetRot, 0.3);
+                            playerAvatar.rotation.y = currentRotationY;
+                            
+                            const angle = cameraAngleX;
+                            const cos = Math.cos(angle);
+                            const sin = Math.sin(angle);
+                            
+                            playerAvatar.position.x += (moveX * cos + moveZ * sin) * moveSpeed;
+                            playerAvatar.position.z += (-moveX * sin + moveZ * cos) * moveSpeed;
+                        } else {
+                            const dir = Math.atan2(moveX, moveZ);
+                            let targetRot = cameraAngleX + dir;
+                            
+                            let diff = targetRot - currentRotationY;
+                            while (diff < -Math.PI) diff += Math.PI * 2;
+                            while (diff > Math.PI) diff -= Math.PI * 2;
+                            currentRotationY += diff * 0.25;
+                            playerAvatar.rotation.y = currentRotationY;
+                            
+                            const angle = currentRotationY;
+                            playerAvatar.position.x += Math.sin(angle) * moveSpeed;
+                            playerAvatar.position.z += Math.cos(angle) * moveSpeed;
+                        }
+                    }
+
+                    if ((keysPressed[' '] || keysPressed['space']) && isGrounded) {
+                        if (isRidingCar) {
+                            isRidingCar = false;
+                            playerAvatar.position.y = rideableCar.y + 0.35;
+                            playerVelocityY = currentGameSpawnItems.includes('gravityCoil') ? jumpForce * 1.8 : jumpForce;
+                            isGrounded = false;
+                            keysPressed.space = false;
+                            keysPressed[' '] = false;
+                        } else if (rideableCar && Math.hypot(playerAvatar.position.x - rideableCar.x, playerAvatar.position.z - rideableCar.z) < 4) {
+                            isRidingCar = true;
+                            playerAvatar.position.set(rideableCar.x, rideableCar.y, rideableCar.z);
+                            playerVelocityY = 0;
+                            keysPressed.space = false;
+                            keysPressed[' '] = false;
+                        } else {
+                            playerVelocityY = currentGameSpawnItems.includes('gravityCoil') ? jumpForce * 1.8 : jumpForce;
+                            isGrounded = false;
+                        }
+                    }
+
+                    if (isRidingCar && rideableCar) {
+                        const deltaX = playerAvatar.position.x - previousPlayerX;
+                        const deltaZ = playerAvatar.position.z - previousPlayerZ;
+                        rideableCar.group.position.x += deltaX;
+                        rideableCar.group.position.z += deltaZ;
+                        rideableCar.x = playerAvatar.position.x;
+                        rideableCar.z = playerAvatar.position.z;
+                    }
+
+                    playerVelocityY += gravity;
+                    playerAvatar.position.y += playerVelocityY;
+
+                    if (playerAvatar.position.y < -25) {
+                        playerAvatar.position.set(0, 0, currentGameType === 'island' ? 0 : 35);
+                        playerVelocityY = 0;
+                    }
+
+                    isGrounded = false;
+                    let activeTopY = 0;
+                    const pX = playerAvatar.position.x;
+                    const pY = playerAvatar.position.y;
+                    const pZ = playerAvatar.position.z;
+
+                    for (let obj of colliders) {
+                        const geo = obj.geometry.parameters;
+                        const w = geo.width || 80;
+                        const d = geo.depth || 80;
+                        const topY = obj.position.y + (geo.height / 2);
+
+                        if (Math.abs(pX - obj.position.x) < w / 2 + 0.45 && Math.abs(pZ - obj.position.z) < d / 2 + 0.45) {
+                            if (pY <= topY && pY >= topY - 0.5 && playerVelocityY <= 0) {
+                                activeTopY = topY;
+                                playerVelocityY = 0;
+                                isGrounded = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isRidingCar && rideableCar) {
+                        playerAvatar.position.y = rideableCar.y;
+                        playerVelocityY = 0;
+                        isGrounded = true;
+                    }
+
+                    let targetLeftLeg = 0, targetRightLeg = 0, targetLeftArm = 0, targetRightArm = 0, targetBob = 0;
+
+                    if (activeEmote) {
+                        animTime += 0.25;
+                        const emoteVal = Math.sin(animTime) * 1.2;
+                        targetLeftArm = emoteVal;
+                        targetRightArm = -emoteVal;
+                        targetLeftLeg = Math.cos(animTime) * 0.5;
+                        targetRightLeg = -Math.cos(animTime) * 0.5;
+                        targetBob = Math.abs(Math.sin(animTime * 2)) * 0.12;
+
+                        emoteTimer--;
+                        if (emoteTimer <= 0) {
+                            activeEmote = null;
+                        }
+                    } else if (!isGrounded) {
+                        targetLeftLeg = 0.4; targetRightLeg = -0.4;
+                        targetLeftArm = -0.2; targetRightArm = 0.2;
+                    } else if (isMoving) {
+                        animTime += 0.16; 
+                        const swing = Math.sin(animTime) * 0.85;
+                        targetLeftLeg = swing; targetRightLeg = -swing;
+                        targetLeftArm = -swing * 0.45; targetRightArm = swing * 0.45;
+                        targetBob = Math.abs(Math.sin(animTime * 2)) * 0.07;
+                    } else {
+                        animTime = 0;
+                    }
+
+                    playerParts.leftLeg.rotation.x = THREE.MathUtils.lerp(playerParts.leftLeg.rotation.x, targetLeftLeg, 0.2);
+                    playerParts.rightLeg.rotation.x = THREE.MathUtils.lerp(playerParts.rightLeg.rotation.x, targetRightLeg, 0.2);
+                    playerParts.leftArm.rotation.x = THREE.MathUtils.lerp(playerParts.leftArm.rotation.x, targetLeftArm, 0.2);
+                    playerParts.rightArm.rotation.x = THREE.MathUtils.lerp(playerParts.rightArm.rotation.x, targetRightArm, 0.2);
+
+                    currentBob = THREE.MathUtils.lerp(currentBob, targetBob, 0.2);
+                    if (isGrounded) {
+                        playerAvatar.position.y = activeTopY + currentBob;
+                    }
+
+                    if (gameSocket && gameSocket.connected && performance.now() - lastNetworkMoveTime > 50) {
+                        gameSocket.emit('player_move', {
+                            x: playerAvatar.position.x,
+                            y: playerAvatar.position.y,
+                            z: playerAvatar.position.z
+                        });
+                        lastNetworkMoveTime = performance.now();
+                    }
+                }
+
+                const dist = 7;
+                const heightOffset = 2.5;
+                
+                let targetCamX, targetCamZ;
+                if (isShiftLocked) {
+                    const sideOffset = 1.2;
+                    targetCamX = playerAvatar.position.x - Math.sin(cameraAngleX) * dist + Math.cos(cameraAngleX) * sideOffset;
+                    targetCamZ = playerAvatar.position.z - Math.cos(cameraAngleX) * dist - Math.sin(cameraAngleX) * sideOffset;
+                } else {
+                    targetCamX = playerAvatar.position.x - Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * dist;
+                    targetCamZ = playerAvatar.position.z - Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * dist;
+                }
+
+                gameCamera.position.set(targetCamX, playerAvatar.position.y + heightOffset + Math.sin(cameraAngleY) * dist, targetCamZ);
+                
+                let lookTargetX = playerAvatar.position.x;
+                let lookTargetZ = playerAvatar.position.z;
+                if(isShiftLocked) {
+                    lookTargetX += Math.cos(cameraAngleX) * 0.8;
+                    lookTargetZ -= Math.sin(cameraAngleX) * 0.8;
+                }
+                gameCamera.lookAt(lookTargetX, playerAvatar.position.y + 1.8, lookTargetZ);
+
+                if (chatBubble.style.display === "block") {
+                    const headWorldPos = new THREE.Vector3();
+                    playerParts.head.getWorldPosition(headWorldPos);
+                    headWorldPos.y += 0.7;
+
+                    const vector = headWorldPos.project(gameCamera);
+                    const halfW = window.innerWidth / 2;
+                    const halfH = (window.innerHeight - 65) / 2;
+
+                    chatBubble.style.left = `${vector.x * halfW + halfW}px`;
+                    chatBubble.style.top = `${-(vector.y * halfH) + halfH}px`;
+                }
+
+                remoteChatBubbles.forEach((bubble, playerId) => {
+                    const remoteAvatar = remotePlayers.get(playerId);
+                    if (!remoteAvatar) return;
+                    const remoteHead = remoteAvatar.position.clone();
+                    remoteHead.y += 3.5;
+                    const remoteVector = remoteHead.project(gameCamera);
+                    const halfW = window.innerWidth / 2;
+                    const halfH = (window.innerHeight - 65) / 2;
+                    bubble.style.left = `${remoteVector.x * halfW + halfW}px`;
+                    bubble.style.top = `${-(remoteVector.y * halfH) + halfH}px`;
+                });
+
+                const gCtx = gameRenderer.getContext();
+                if (gCtx && typeof gCtx.imageSmoothingEnabled !== 'undefined') {
+                    gCtx.imageSmoothingEnabled = false;
+                }
+
+                gameRenderer.render(gameScene, gameCamera);
+            }
+            gameLoop();
+        }
+
+        // --- RAYCASTING BLOCK BUILDER LOGIC ---
+        function handleRemotePlayerDoubleClick(event) {
+            if (!gameActive || isEscMenuOpen || isEmoteWheelOpen || !gameCamera) return;
+            const canvas = document.getElementById('game-canvas');
+            const rect = canvas.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1,
+                -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1
+            );
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, gameCamera);
+            const intersections = raycaster.intersectObjects([...remotePlayers.values()], true);
+            if (!intersections.length) return;
+            let target = intersections[0].object;
+            while (target.parent && !target.userData.playerId) target = target.parent;
+            if (target.userData.playerId) showFriendAction(target.userData.playerId, target.userData.playerName || 'Player');
+        }
+
+        function showWaterShot(targetId) {
+            const target = remotePlayers.get(targetId);
+            if (!target || !playerAvatar || !gameScene) return;
+            const start = playerAvatar.position.clone();
+            start.y += 1.5;
+            const end = target.position.clone();
+            end.y += 1.5;
+            const waterLine = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([start, end]),
+                new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9 })
+            );
+            gameScene.add(waterLine);
+            setTimeout(() => gameScene?.remove(waterLine), 180);
+        }
+
+        function useSelectedTool(mouse) {
+            if (!['sword', 'waterGun'].includes(activeSpawnItem) || !gameSocket?.connected) return false;
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, gameCamera);
+            const intersections = raycaster.intersectObjects([...remotePlayers.values()], true);
+            if (!intersections.length) return true;
+            let target = intersections[0].object;
+            while (target.parent && !target.userData.playerId) target = target.parent;
+            if (!target.userData.playerId) return true;
+            const targetId = target.userData.playerId;
+            gameSocket.emit('use_tool', { tool: activeSpawnItem, targetId });
+            if (activeSpawnItem === 'waterGun') showWaterShot(targetId);
+            return true;
+        }
+
+        function handleGameCanvasClick(e) {
+            if (!gameActive || !currentGameIsUserCreated || isEscMenuOpen || isEmoteWheelOpen) return;
+
+            // Only capture clicks if clicking directly on the canvas or if shift lock is active
+            const canvas = document.getElementById('game-canvas');
+            if (e.target !== canvas && !isShiftLocked) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const mouse = new THREE.Vector2();
+            mouse.x = ((e.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, gameCamera);
+
+            if (useSelectedTool(mouse)) return;
+
+            // Find intersections with registered game colliders
+            const intersects = raycaster.intersectObjects(colliders);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const clickedMesh = intersect.object;
+
+                if (currentBuilderTool === 'delete') {
+                    const blockId = clickedMesh.userData.placedBlockId;
+                    if (blockId && gameSocket && gameSocket.connected) {
+                        gameSocket.emit('delete_block', { id: blockId });
+                    } else if (blockId) {
+                        removePlacedBlock(blockId);
+                    } else if (clickedMesh.userData.mapPartId) {
+                        const mapPartId = clickedMesh.userData.mapPartId;
+                        deleteMapPart(mapPartId);
+                        if (gameSocket && gameSocket.connected) {
+                            gameSocket.emit('delete_map_part', { gameId: currentGameId, mapPartId });
+                        }
+                    }
+                } 
+                else if (currentBuilderTool === 'color') {
+                    const pickedHex = document.getElementById('blockColorPicker').value;
+                    const blockId = clickedMesh.userData.placedBlockId;
+                    if (blockId && gameSocket && gameSocket.connected) {
+                        gameSocket.emit('update_block', { id: blockId, color: pickedHex });
+                    } else if (blockId) {
+                        clickedMesh.material.color.set(pickedHex);
+                    }
+                } 
+                else if (currentBuilderTool === 'place') {
+                    // Compute placement position using face normal offset
+                    const normal = intersect.face.normal.clone();
+                    normal.transformDirection(clickedMesh.matrixWorld);
+                    
+                    const boxSize = Number(document.getElementById('blockSizePicker').value);
+                    const newPos = intersect.point.clone().add(normal.clone().multiplyScalar(boxSize / 2));
+                    const pickedHex = document.getElementById('blockColorPicker').value;
+                    const blockId = `block-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                    const blockData = {
+                        id: blockId,
+                        gameType: currentGameType,
+                        gameId: currentGameId,
+                        x: newPos.x,
+                        y: newPos.y,
+                        z: newPos.z,
+                        size: boxSize,
+                        color: pickedHex
+                    };
+                    if (gameSocket && gameSocket.connected) {
+                        createLocalBlock(blockData);
+                        gameSocket.emit('place_block', blockData);
+                    } else {
+                        createLocalBlock(blockData);
+                    }
+                }
+            }
+        }
+
+        function buildParkMap() {
+            const baseGeo = new THREE.BoxGeometry(120, 1, 120);
+            const baseMat = new THREE.MeshLambertMaterial({ color: 0x55a630 });
+            const baseplate = new THREE.Mesh(baseGeo, baseMat);
+            baseplate.position.set(0, -0.5, 20);
+            gameScene.add(baseplate);
+            colliders.push(baseplate);
+
+            const pathMat = new THREE.MeshLambertMaterial({ color: 0xd3d3d3 });
+            const pathNorth = new THREE.Mesh(new THREE.BoxGeometry(12, 1.02, 60), pathMat);
+            pathNorth.position.set(0, -0.49, -15);
+            gameScene.add(pathNorth);
+            colliders.push(pathNorth);
+
+            const pathEastWest = new THREE.Mesh(new THREE.BoxGeometry(90, 1.02, 12), pathMat);
+            pathEastWest.position.set(0, -0.49, 20);
+            gameScene.add(pathEastWest);
+            colliders.push(pathEastWest);
+
+            const fountainBase = new THREE.Mesh(new THREE.BoxGeometry(16, 1.2, 16), new THREE.MeshLambertMaterial({ color: 0xcccccc }));
+            fountainBase.position.set(0, 0.1, 20);
+            gameScene.add(fountainBase);
+            colliders.push(fountainBase);
+
+            const fountainWater = new THREE.Mesh(new THREE.BoxGeometry(14, 1.1, 14), new THREE.MeshLambertMaterial({ color: 0x38bdf8 }));
+            fountainWater.position.set(0, 0.15, 20);
+            gameScene.add(fountainWater);
+            colliders.push(fountainWater);
+
+            const fountainSpout = new THREE.Mesh(new THREE.BoxGeometry(3, 4, 3), new THREE.MeshLambertMaterial({ color: 0xe5e7eb }));
+            fountainSpout.position.set(0, 2, 20);
+            gameScene.add(fountainSpout);
+            colliders.push(fountainSpout);
+
+            const treePositions = [[-35, -5], [35, -5], [-35, 45], [35, 45], [-45, 20], [45, 20], [0, -20]];
+            treePositions.forEach(pos => {
+                const trunk = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), new THREE.MeshLambertMaterial({ color: 0x8b5a2b }));
+                trunk.position.set(pos[0], 1.5, pos[1]);
+                gameScene.add(trunk);
+                colliders.push(trunk);
+
+                const leaves = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 6), new THREE.MeshLambertMaterial({ color: 0x2b9348 }));
+                leaves.position.set(pos[0], 5.5, pos[1]);
+                gameScene.add(leaves);
+                colliders.push(leaves);
+            });
+
+            const obbyColors = [0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x3b82f6, 0xa855f7, 0xec4899];
+            for (let i = 1; i <= 14; i++) {
+                const step = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 3.5), new THREE.MeshLambertMaterial({ color: obbyColors[i % obbyColors.length] }));
+                step.position.set(0, 0.4 * i, -15 - (i * 3.5));
+                gameScene.add(step);
+                colliders.push(step);
+            }
+
+            const movingPlatformMesh = new THREE.Mesh(new THREE.BoxGeometry(6, 0.8, 4), new THREE.MeshLambertMaterial({ color: 0xff007f }));
+            movingPlatformMesh.position.set(0, 6.2, -67);
+            gameScene.add(movingPlatformMesh);
+            colliders.push(movingPlatformMesh);
+            movingPlatforms.push({ mesh: movingPlatformMesh, axis: 'x', initialPos: 0, range: 12, speed: 2.5, time: 0 });
+
+            const platformMid = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 10), new THREE.MeshLambertMaterial({ color: 0x0284c7 }));
+            platformMid.position.set(0, 6.5, -85);
+            gameScene.add(platformMid);
+            colliders.push(platformMid);
+
+            for (let i = 1; i <= 10; i++) {
+                const hurdle = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.6, 3.2), new THREE.MeshLambertMaterial({ color: obbyColors[(i + 3) % obbyColors.length] }));
+                hurdle.position.set((i % 2 === 0 ? 5 : -5), 6.5 + (i * 0.4), -88 - (i * 3.2));
+                gameScene.add(hurdle);
+                colliders.push(hurdle);
+            }
+
+            const towerBase = new THREE.Mesh(new THREE.BoxGeometry(16, 12, 16), new THREE.MeshLambertMaterial({ color: 0x334155 }));
+            towerBase.position.set(0, 8.5, -125);
+            gameScene.add(towerBase);
+            colliders.push(towerBase);
+
+            const victoryRoof = new THREE.Mesh(new THREE.ConeGeometry(12, 6, 4), new THREE.MeshLambertMaterial({ color: 0xeab308 }));
+            victoryRoof.position.set(0, 17.5, -125);
+            gameScene.add(victoryRoof);
+            colliders.push(victoryRoof);
+
+            const victoryBanner = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 0.5), new THREE.MeshLambertMaterial({ color: 0x22c55e }));
+            victoryBanner.position.set(0, 15, -116.5);
+            gameScene.add(victoryBanner);
+
+            const houseWallMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+            const houseFloor = new THREE.Mesh(new THREE.BoxGeometry(14, 0.3, 12), houseWallMat);
+            houseFloor.position.set(-28, 0.15, 30);
+            gameScene.add(houseFloor);
+            colliders.push(houseFloor);
+            const houseWalls = [
+                { size: [14, 8, 0.5], position: [-28, 4, 35.75] },
+                { size: [0.5, 8, 12], position: [-34.75, 4, 30] },
+                { size: [0.5, 8, 12], position: [-21.25, 4, 30] },
+                { size: [3.8, 8, 0.5], position: [-33.1, 4, 24.25] },
+                { size: [3.8, 8, 0.5], position: [-22.9, 4, 24.25] }
+            ];
+            houseWalls.forEach(wallData => {
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(...wallData.size), houseWallMat);
+                wall.position.set(...wallData.position);
+                gameScene.add(wall);
+                colliders.push(wall);
+            });
+
+            const houseRoof = new THREE.Mesh(new THREE.ConeGeometry(10, 5, 4), new THREE.MeshLambertMaterial({ color: 0xdc2626 }));
+            houseRoof.position.set(-28, 10.5, 30);
+            houseRoof.rotation.y = Math.PI / 4;
+            gameScene.add(houseRoof);
+
+            const houseDoor = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4, 0.2), new THREE.MeshLambertMaterial({ color: 0x78350f }));
+            houseDoor.position.set(-28, 2, 23.9);
+            gameScene.add(houseDoor);
+            const windowMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+            [-32, -24].forEach(windowX => {
+                const houseWindow = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 0.2), windowMat);
+                houseWindow.position.set(windowX, 5, 23.9);
+                gameScene.add(houseWindow);
+            });
+
+            const carGroup = new THREE.Group();
+            gameScene.add(carGroup);
+            const carBody = new THREE.Mesh(new THREE.BoxGeometry(6, 1.4, 3.2), new THREE.MeshLambertMaterial({ color: 0x2563eb }));
+            carBody.position.set(24, 1.2, 20);
+            carGroup.add(carBody);
+
+            const carCabin = new THREE.Mesh(
+                new THREE.BoxGeometry(3.4, 1.2, 2.6),
+                new THREE.MeshLambertMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.38, depthWrite: false })
+            );
+            carCabin.position.set(24, 2.4, 20);
+            carGroup.add(carCabin);
+
+            const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+            [-2.1, 2.1].forEach(wheelX => {
+                [-1.35, 1.35].forEach(wheelZ => {
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.35, 12), wheelMat);
+                    wheel.position.set(24 + wheelX, 0.55, 20 + wheelZ);
+                    wheel.rotation.z = Math.PI / 2;
+                    carGroup.add(wheel);
+                });
+            });
+            rideableCar = { group: carGroup, x: 24, y: 0.35, z: 20 };
+        }
+
+        function buildIslandMap() {
+            const islandBase = new THREE.Mesh(new THREE.BoxGeometry(70, 1.5, 70), new THREE.MeshLambertMaterial({ color: 0xfde047 }));
+            islandBase.position.y = -0.75;
+            gameScene.add(islandBase);
+            colliders.push(islandBase);
+
+            const ocean = new THREE.Mesh(new THREE.BoxGeometry(300, 1, 300), new THREE.MeshLambertMaterial({ color: 0x0284c7 }));
+            ocean.position.y = -2;
+            gameScene.add(ocean);
+
+            const hill = new THREE.Mesh(new THREE.BoxGeometry(25, 3, 25), new THREE.MeshLambertMaterial({ color: 0x15803d }));
+            hill.position.set(0, 0.75, 0);
+            gameScene.add(hill);
+            colliders.push(hill);
+
+            const palmPositions = [[-15, -15], [18, -15], [-15, 18], [15, 18]];
+            palmPositions.forEach(pos => {
+                const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.5, 6, 1.5), new THREE.MeshLambertMaterial({ color: 0xa16207 }));
+                trunk.position.set(pos[0], 2.5, pos[1]);
+                gameScene.add(trunk);
+                colliders.push(trunk);
+
+                const leaves = new THREE.Mesh(new THREE.BoxGeometry(7, 2, 7), new THREE.MeshLambertMaterial({ color: 0x16a34a }));
+                leaves.position.set(pos[0], 5.5, pos[1]);
+                gameScene.add(leaves);
+                colliders.push(leaves);
+            });
+
+            const obbyColors = [0x38bdf8, 0x818cf8, 0xc084fc, 0xf43f5e];
+            for (let i = 1; i <= 10; i++) {
+                const step = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 3.5), new THREE.MeshLambertMaterial({ color: obbyColors[i % obbyColors.length] }));
+                step.position.set(0, 1.5 + (i * 0.8), -8 - (i * 4));
+                gameScene.add(step);
+                colliders.push(step);
+            }
+        }
+
+        function handleWindowBlur() { keysPressed = {}; }
+
+        let isMouseDown = false;
+        const canvas = document.getElementById('game-canvas');
+        window.addEventListener('mousedown', (e) => { if (gameActive && !isEscMenuOpen && !isEmoteWheelOpen && (e.target === canvas || isShiftLocked)) isMouseDown = true; });
+        window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+        function handleMouseMove(e) {
+            if (!gameActive || isEscMenuOpen || isEmoteWheelOpen) return;
+            if (isShiftLocked || isMouseDown) {
+                const sensitivity = sensitivityValues[gameSettings.sensitivity];
+                cameraAngleX -= e.movementX * sensitivity;
+                cameraAngleY += e.movementY * sensitivity;
+                if (cameraAngleY > Math.PI / 3) cameraAngleY = Math.PI / 3;
+                if (cameraAngleY < -Math.PI / 3) cameraAngleY = -Math.PI / 3;
+            }
+        }
+
+        function handleKeyDown(e) {
+            if (!gameActive) return;
+            if (e.key === 'Escape') { 
+                if (isEmoteWheelOpen) toggleEmoteWheel();
+                else toggleEscMenu(); 
+                return; 
+            }
+            if (e.key.toLowerCase() === 't') {
+                toggleEmoteWheel();
+                return;
+            }
+            if (/^[1-4]$/.test(e.key)) {
+                const slot = document.querySelector(`#spawn-item-bar button[data-tool]:nth-child(${e.key})`);
+                if (slot && slot.style.display !== 'none' && slot.dataset.tool !== 'empty') slot.onclick();
+                return;
+            }
+            if (isEscMenuOpen || isEmoteWheelOpen) return;
+            if ((e.key === ' ' || e.key === 'Spacebar') && rideableCar && playerAvatar) {
+                const nearCar = Math.hypot(playerAvatar.position.x - rideableCar.x, playerAvatar.position.z - rideableCar.z) < 4;
+                if (isRidingCar || (isGrounded && nearCar)) {
+                    isRidingCar = !isRidingCar;
+                    if (isRidingCar) {
+                        playerAvatar.position.set(rideableCar.x, rideableCar.y, rideableCar.z);
+                        playerVelocityY = 0;
+                    } else {
+                        playerAvatar.position.y = rideableCar.y + 0.35;
+                        playerVelocityY = currentGameSpawnItems.includes('gravityCoil') ? jumpForce * 1.8 : jumpForce;
+                    }
+                    keysPressed.space = false;
+                    keysPressed[' '] = false;
+                    return;
+                }
+            }
+            keysPressed[e.key.toLowerCase()] = true;
+            if (e.key === ' ' || e.key === 'Spacebar') keysPressed['space'] = true;
+            if (e.key === 'Shift') {
+                isShiftLocked = !isShiftLocked;
+                gameSettings.shiftLock = isShiftLocked;
+                document.getElementById('val-shiftLock').innerText = isShiftLocked ? 'Enabled' : 'Disabled';
+                document.getElementById('shift-lock-cursor').style.display = isShiftLocked ? 'block' : 'none';
+            }
+        }
+
+        function handleKeyUp(e) {
+            keysPressed[e.key.toLowerCase()] = false;
+            if (e.key === ' ' || e.key === 'Spacebar') keysPressed['space'] = false;
+        }
+
+        const chatInput = document.getElementById("chatInput");
+        const chatBubble = document.getElementById("chatBubble");
+        let bubbleTimer = null;
+
+        chatInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                const text = chatInput.value.trim();
+                if (text !== "") {
+                    chatBubble.textContent = text;
+                    chatBubble.style.display = "block";
+                    chatBubble.style.opacity = "1";
+                    if (bubbleTimer) clearTimeout(bubbleTimer);
+                    bubbleTimer = setTimeout(() => {
+                        chatBubble.style.opacity = "0";
+                        setTimeout(() => { chatBubble.style.display = "none"; }, 300);
+                    }, 4000);
+                    if (gameSocket && gameSocket.connected) {
+                        gameSocket.emit('send_chat', text);
+                    }
+                    chatInput.value = "";
+                }
+            }
+        });
+
+        document.getElementById("robloxIconButton").addEventListener("click", () => toggleEscMenu());
+        document.getElementById("gearButton").addEventListener("click", () => toggleEscMenu());
+        document.getElementById("refreshButton").addEventListener("click", () => location.reload());
+    </script>
+</body>
+</html>
