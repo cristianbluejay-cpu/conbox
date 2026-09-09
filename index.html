@@ -1446,12 +1446,12 @@
         body.mobile-game .main-container {
             display: block;
             width: 100vw;
-            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
         }
         body.mobile-game #game-view {
             top: 0;
-            height: 100vh;
+            height: 100dvh;
             width: 100vw;
         }
         body.mobile-game #mobile-controls { display: block; }
@@ -1493,8 +1493,11 @@
             body.mobile-game #game-view > #esc-menu.esc-menu-open { display: flex; }
 
         @media (max-width: 600px) {
-            body.mobile-game #mobile-joystick { left: 18px; bottom: 18px; }
-            body.mobile-game .mobile-action-button { right: 18px; }
+            body.mobile-game #mobile-joystick {
+                left: max(18px, env(safe-area-inset-left));
+                bottom: max(18px, env(safe-area-inset-bottom));
+            }
+            body.mobile-game .mobile-action-button { right: max(18px, env(safe-area-inset-right)); }
             body.mobile-game #builderToolbar { bottom: 240px; }
             body.mobile-game #chatInputContainer { bottom: 170px; }
                 body.mobile-game #chatInput { width: 260px; }
@@ -5627,7 +5630,7 @@
             soundBounce: false,
             smoothMode: false,
             fullscreen: false,
-            halloweenMode: false,
+            halloweenMode: true,
                 sidebarPosition: 'left',
             customFontData: '',
             customFontName: '',
@@ -8158,6 +8161,9 @@ if (player.touchingPart('goal')) {<br/>
             }
         }
         window.addEventListener('resize', onWindowResizePreview);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', onWindowResizePreview);
+        }
 
         let gameScene, gameRenderer, playerAvatar, gameCamera;
         let rideableCar = null;
